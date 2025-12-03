@@ -34,7 +34,7 @@ func TestCheckHTTP(t *testing.T) {
 			name: "successful 200 response",
 			serverHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte("OK"))
+				_, _ = w.Write([]byte("OK"))
 			},
 			expectedStatus: 200,
 			expectError:    false,

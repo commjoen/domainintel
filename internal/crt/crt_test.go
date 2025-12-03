@@ -201,7 +201,7 @@ func TestQueryCRTshMockServer(t *testing.T) {
 			name: "empty response",
 			serverResponse: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				w.Write([]byte("[]"))
+				_, _ = w.Write([]byte("[]"))
 			},
 			wantErr:   false,
 			wantCount: 0,
@@ -210,7 +210,7 @@ func TestQueryCRTshMockServer(t *testing.T) {
 			name: "null response",
 			serverResponse: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				w.Write([]byte("null"))
+				_, _ = w.Write([]byte("null"))
 			},
 			wantErr:   false,
 			wantCount: 0,

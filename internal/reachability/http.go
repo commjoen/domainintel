@@ -26,9 +26,6 @@ type Checker struct {
 	timeout     time.Duration
 }
 
-// redirectChainKey is used to store redirect chain in request context
-type redirectChainKey struct{}
-
 // NewChecker creates a new reachability checker with the specified timeout
 func NewChecker(timeout time.Duration) *Checker {
 	if timeout == 0 {
