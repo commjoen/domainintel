@@ -297,3 +297,309 @@ func TestTextFormatterMultipleIPs(t *testing.T) {
 		t.Error("Output should show first IP and additional count")
 	}
 }
+
+func TestTextFormatterWithDNSRecords(t *testing.T) {
+	result := &models.ScanResult{
+		Timestamp: time.Now(),
+		Domains: []models.DomainResult{
+			{
+				Name: "example.com",
+				Subdomains: []models.SubdomainResult{
+					{
+						Hostname:  "example.com",
+						IPs:       []string{"93.184.216.34"},
+						Reachable: true,
+						DNS: &models.DNSResult{
+							A:     []string{"93.184.216.34"},
+							AAAA:  []string{"2606:2800:220:1:248:1893:25c8:1946"},
+							MX:    []models.MXRecord{{Host: "mail.example.com", Priority: 10}},
+							NS:    []string{"ns1.example.com", "ns2.example.com"},
+							TXT:   []string{"v=spf1 include:_spf.example.com ~all"},
+							CNAME: "",
+							SOA: &models.SOARecord{
+								PrimaryNS:  "ns1.example.com",
+								AdminEmail: "admin@example.com",
+								Serial:     2023010101,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	formatter := &TextFormatter{}
+
+	output, err := formatter.Format(result)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	// Check that DNS records are displayed
+	checks := []string{
+		"DNS Records:",
+		"A:     93.184.216.34",
+		"AAAA:  2606:2800:220:1:248:1893:25c8:1946",
+		"MX:    mail.example.com (pri: 10)",
+		"NS:    ns1.example.com, ns2.example.com",
+		"TXT:   v=spf1 include:_spf.example.com ~all",
+		"SOA:   ns1.example.com (admin: admin@example.com, serial: 2023010101)",
+	}
+
+	for _, check := range checks {
+		if !strings.Contains(output, check) {
+			t.Errorf("Output should contain %q, got:\n%s", check, output)
+		}
+	}
+}
+
+func TestTextFormatterWithWHOIS(t *testing.T) {
+	creationDate := time.Date(1995, 8, 14, 0, 0, 0, 0, time.UTC)
+	expirationDate := time.Date(2025, 8, 13, 0, 0, 0, 0, time.UTC)
+	updatedDate := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
+
+	result := &models.ScanResult{
+		Timestamp: time.Now(),
+		Domains: []models.DomainResult{
+			{
+				Name: "example.com",
+				Subdomains: []models.SubdomainResult{
+					{
+						Hostname:  "example.com",
+						IPs:       []string{"93.184.216.34"},
+						Reachable: true,
+						WHOIS: &models.WHOISResult{
+							Registrar:      "Example Registrar, Inc.",
+							RegistrantOrg:  "Example Organization",
+							RegistrantName: "Domain Admin",
+							Nameservers:    []string{"ns1.example.com", "ns2.example.com"},
+							Status:         []string{"clientTransferProhibited"},
+							CreationDate:   &creationDate,
+							ExpirationDate: &expirationDate,
+							UpdatedDate:    &updatedDate,
+						},
+					},
+				},
+			},
+		},
+	}
+	formatter := &TextFormatter{}
+
+	output, err := formatter.Format(result)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	// Check that WHOIS information is displayed
+	checks := []string{
+		"WHOIS Information:",
+		"Registrar:   Example Registrar, Inc.",
+		"Organization: Example Organization",
+		"Registrant:  Domain Admin",
+		"Created:     1995-08-14",
+		"Expires:     2025-08-13",
+		"Updated:     2024-01-15",
+		"Nameservers: ns1.example.com, ns2.example.com",
+		"Status:      clientTransferProhibited",
+	}
+
+	for _, check := range checks {
+		if !strings.Contains(output, check) {
+			t.Errorf("Output should contain %q, got:\n%s", check, output)
+		}
+	}
+}
+
+func TestTextFormatterWithThirdPartyProviders(t *testing.T) {
+	result := &models.ScanResult{
+		Timestamp: time.Now(),
+		Domains: []models.DomainResult{
+			{
+				Name: "example.com",
+				Subdomains: []models.SubdomainResult{
+					{
+						Hostname:  "example.com",
+						IPs:       []string{"93.184.216.34"},
+						Reachable: true,
+						ThirdParty: map[string]interface{}{
+							"vt": map[string]interface{}{
+								"detected":   false,
+								"score":      "0/87",
+								"categories": []interface{}{"harmless"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	formatter := &TextFormatter{}
+
+	output, err := formatter.Format(result)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	// Check that third-party provider results are displayed
+	checks := []string{
+		"Third-Party Providers:",
+		"vt:",
+		"Detected:   No",
+		"Score:      0/87",
+		"Categories: harmless",
+	}
+
+	for _, check := range checks {
+		if !strings.Contains(output, check) {
+			t.Errorf("Output should contain %q, got:\n%s", check, output)
+		}
+	}
+}
+
+func TestTextFormatterWithAllExtendedInfo(t *testing.T) {
+	creationDate := time.Date(1995, 8, 14, 0, 0, 0, 0, time.UTC)
+
+	result := &models.ScanResult{
+		Timestamp: time.Now(),
+		Domains: []models.DomainResult{
+			{
+				Name: "example.com",
+				Subdomains: []models.SubdomainResult{
+					{
+						Hostname:  "example.com",
+						IPs:       []string{"93.184.216.34"},
+						Reachable: true,
+						DNS: &models.DNSResult{
+							A:  []string{"93.184.216.34"},
+							NS: []string{"ns1.example.com"},
+						},
+						WHOIS: &models.WHOISResult{
+							Registrar:    "Example Registrar",
+							CreationDate: &creationDate,
+						},
+						ThirdParty: map[string]interface{}{
+							"vt": map[string]interface{}{
+								"detected": false,
+								"score":    "0/87",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	formatter := &TextFormatter{}
+
+	output, err := formatter.Format(result)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	// Check that all sections are displayed
+	checks := []string{
+		"DNS Records:",
+		"WHOIS Information:",
+		"Third-Party Providers:",
+	}
+
+	for _, check := range checks {
+		if !strings.Contains(output, check) {
+			t.Errorf("Output should contain %q, got:\n%s", check, output)
+		}
+	}
+}
+
+func TestTextFormatterWithDNSError(t *testing.T) {
+	result := &models.ScanResult{
+		Timestamp: time.Now(),
+		Domains: []models.DomainResult{
+			{
+				Name: "example.com",
+				Subdomains: []models.SubdomainResult{
+					{
+						Hostname:  "example.com",
+						IPs:       []string{},
+						Reachable: false,
+						DNS: &models.DNSResult{
+							Error: "DNS lookup failed: NXDOMAIN",
+						},
+					},
+				},
+			},
+		},
+	}
+	formatter := &TextFormatter{}
+
+	output, err := formatter.Format(result)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	if !strings.Contains(output, "Error: DNS lookup failed: NXDOMAIN") {
+		t.Errorf("Output should contain DNS error, got:\n%s", output)
+	}
+}
+
+func TestTextFormatterWithWHOISError(t *testing.T) {
+	result := &models.ScanResult{
+		Timestamp: time.Now(),
+		Domains: []models.DomainResult{
+			{
+				Name: "example.com",
+				Subdomains: []models.SubdomainResult{
+					{
+						Hostname:  "example.com",
+						IPs:       []string{"93.184.216.34"},
+						Reachable: true,
+						WHOIS: &models.WHOISResult{
+							Error: "WHOIS lookup failed: connection timeout",
+						},
+					},
+				},
+			},
+		},
+	}
+	formatter := &TextFormatter{}
+
+	output, err := formatter.Format(result)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	if !strings.Contains(output, "Error:       WHOIS lookup failed: connection timeout") {
+		t.Errorf("Output should contain WHOIS error, got:\n%s", output)
+	}
+}
+
+func TestTextFormatterWithProviderError(t *testing.T) {
+	result := &models.ScanResult{
+		Timestamp: time.Now(),
+		Domains: []models.DomainResult{
+			{
+				Name: "example.com",
+				Subdomains: []models.SubdomainResult{
+					{
+						Hostname:  "example.com",
+						IPs:       []string{"93.184.216.34"},
+						Reachable: true,
+						ThirdParty: map[string]interface{}{
+							"vt": map[string]interface{}{
+								"detected": false,
+								"error":    "API rate limit exceeded",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	formatter := &TextFormatter{}
+
+	output, err := formatter.Format(result)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	if !strings.Contains(output, "Error:      API rate limit exceeded") {
+		t.Errorf("Output should contain provider error, got:\n%s", output)
+	}
+}
