@@ -343,6 +343,11 @@ func processDomain(ctx context.Context, domain string, crtClient *crt.Client, ch
 	total := len(subdomains)
 	var completed int64
 
+	// Show initial progress (0%) before starting subdomain checks
+	if progress {
+		printProgress(domain, 0, total)
+	}
+
 	// Check reachability for each subdomain concurrently
 	results := make([]models.SubdomainResult, len(subdomains))
 	var wg sync.WaitGroup
