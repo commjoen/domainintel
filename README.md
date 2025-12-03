@@ -107,6 +107,7 @@ domainintel --domains example.com --format json | jq -r '.domains[].subdomains[]
 | `--timeout` | `-t` | duration | `10s` | HTTP request timeout |
 | `--concurrent` | `-c` | int | `10` | Maximum concurrent requests |
 | `--verbose` | `-v` | bool | `false` | Enable verbose logging |
+| `--progress` | `-p` | bool | `false` | Show progress bar during scan |
 
 ## Development
 

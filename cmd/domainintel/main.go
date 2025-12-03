@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -27,6 +28,7 @@ var (
 	timeout    time.Duration
 	concurrent int
 	verbose    bool
+	progress   bool
 
 	// Version information (set during build)
 	version = "dev"
@@ -65,6 +67,7 @@ func init() {
 	rootCmd.Flags().DurationVarP(&timeout, "timeout", "t", 10*time.Second, "HTTP request timeout")
 	rootCmd.Flags().IntVarP(&concurrent, "concurrent", "c", 10, "Maximum concurrent requests")
 	rootCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging")
+	rootCmd.Flags().BoolVarP(&progress, "progress", "p", false, "Show progress bar during scan")
 
 	_ = rootCmd.MarkFlagRequired("domains")
 }
@@ -184,6 +187,9 @@ func processDomain(ctx context.Context, domain string, crtClient *crt.Client, ch
 		subdomains = []string{domain}
 	}
 
+	total := len(subdomains)
+	var completed int64
+
 	// Check reachability for each subdomain concurrently
 	results := make([]models.SubdomainResult, len(subdomains))
 	var wg sync.WaitGroup
@@ -211,15 +217,35 @@ func processDomain(ctx context.Context, domain string, crtClient *crt.Client, ch
 			}
 
 			results[idx] = checker.CheckHost(ctx, hostname)
+
+			// Update progress
+			if progress {
+				current := atomic.AddInt64(&completed, 1)
+				printProgress(domain, int(current), total)
+			}
 		}(i, subdomain)
 	}
 
 	wg.Wait()
 
+	// Clear progress bar line
+	if progress {
+		fmt.Fprintf(os.Stderr, "\r%s\r", strings.Repeat(" ", 80))
+	}
+
 	return &models.DomainResult{
 		Name:       domain,
 		Subdomains: results,
 	}, nil
+}
+
+// printProgress displays a progress bar
+func printProgress(domain string, current, total int) {
+	percentage := float64(current) / float64(total) * 100
+	barWidth := 40
+	filled := int(float64(barWidth) * float64(current) / float64(total))
+	bar := strings.Repeat("█", filled) + strings.Repeat("░", barWidth-filled)
+	fmt.Fprintf(os.Stderr, "\r[%s] %3.0f%% (%d/%d) %s", bar, percentage, current, total, domain)
 }
 
 func outputResults(formatter output.Formatter, result *models.ScanResult) error {
