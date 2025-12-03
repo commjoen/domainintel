@@ -164,6 +164,32 @@ func TestPrintProgressComplete(t *testing.T) {
 	}
 }
 
+func TestPrintProgressInitial(t *testing.T) {
+	oldStderr := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+
+	// Test initial progress (0%) which should be shown before any subdomain checks
+	printProgress("example.com", 0, 10)
+
+	w.Close()
+	os.Stderr = oldStderr
+
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	output := buf.String()
+
+	if !strings.Contains(output, "example.com") {
+		t.Error("Progress output should contain domain name")
+	}
+	if !strings.Contains(output, "0%") {
+		t.Error("Progress output should show 0% for initial progress")
+	}
+	if !strings.Contains(output, "0/10") {
+		t.Error("Progress output should show 0/10 for initial progress")
+	}
+}
+
 func TestRunWithInvalidDomain(t *testing.T) {
 	// Set the domains flag to an invalid value
 	domains = "invalid domain with spaces"
