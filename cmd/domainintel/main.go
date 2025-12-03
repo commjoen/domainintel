@@ -55,7 +55,13 @@ var rootCmd = &cobra.Command{
 	Long: `domainintel is a command-line reconnaissance tool designed to gather
 comprehensive intelligence about domains. It automates the process of
 discovering subdomains, checking their availability, resolving IP addresses,
-and validating TLS certificates.`,
+and validating TLS certificates.
+
+Third-party providers:
+  --providers vt,urlvoid
+    - vt      (VirusTotal) requires VT_API_KEY in environment
+    - urlvoid (URLVoid)    requires URLVOID_API_KEY in environment
+If you request a provider without the required API key set, the command will fail with a clear error.`,
 	Example: `  # Basic subdomain enumeration
   domainintel --domains example.com
 
@@ -69,6 +75,8 @@ and validating TLS certificates.`,
   domainintel --domains example.com --dig --whois
 
   # Use third-party reputation services (API keys required)
+  export VT_API_KEY=your_key
+  export URLVOID_API_KEY=your_key
   domainintel --domains example.com --providers vt,urlvoid`,
 	RunE: run,
 }
@@ -83,7 +91,8 @@ func init() {
 	rootCmd.Flags().BoolVarP(&progress, "progress", "p", false, "Show progress bar during scan")
 	rootCmd.Flags().BoolVar(&enableDig, "dig", false, "Enable extended DNS queries (A/AAAA/MX/TXT/NS/CNAME/SOA)")
 	rootCmd.Flags().BoolVar(&enableWhois, "whois", false, "Enable WHOIS lookups for registration data")
-	rootCmd.Flags().StringVar(&providersList, "providers", "", "Comma-separated third-party services: urlvoid,vt")
+	// Clarify available providers and required env keys
+	rootCmd.Flags().StringVar(&providersList, "providers", "", "Comma-separated third-party services: vt,urlvoid (requires VT_API_KEY and/or URLVOID_API_KEY)")
 
 	// MarkFlagRequired only returns an error if the flag doesn't exist.
 	// Since we just registered the flag above, this error should never occur in practice.
@@ -153,26 +162,10 @@ func run(cmd *cobra.Command, args []string) error {
 		whoisClient = whois.NewClient(timeout)
 	}
 
-	var providerManager *providers.Manager
-	var providerList []string
-	if providersList != "" {
-		providerManager = providers.NewManager()
-		// Register available providers
-		providerManager.Register(providers.NewVirusTotal(providers.VirusTotalConfig{
-			APIKey:  os.Getenv("VT_API_KEY"),
-			Timeout: timeout,
-		}))
-		providerManager.Register(providers.NewURLVoid(providers.URLVoidConfig{
-			APIKey:  os.Getenv("URLVOID_API_KEY"),
-			Timeout: timeout,
-		}))
-		// Parse provider list
-		for _, p := range strings.Split(providersList, ",") {
-			p = strings.TrimSpace(p)
-			if p != "" {
-				providerList = append(providerList, p)
-			}
-		}
+	// Validate and set up providers if requested
+	providerManager, providerList, err := setupProviders(providersList, timeout)
+	if err != nil {
+		return err
 	}
 
 	// Process each domain
@@ -459,4 +452,69 @@ func outputResults(formatter output.Formatter, result *models.ScanResult) error 
 	}
 
 	return formatter.Write(writer, result)
+}
+
+func setupProviders(list string, timeout time.Duration) (*providers.Manager, []string, error) {
+	if strings.TrimSpace(list) == "" {
+		return nil, nil, nil
+	}
+
+	// Supported providers registry
+	supported := map[string]struct{}{
+		"vt":      {},
+		"urlvoid": {},
+	}
+
+	parts := strings.Split(list, ",")
+	requested := make([]string, 0, len(parts))
+
+	// Parse and validate names
+	for _, p := range parts {
+		p = strings.TrimSpace(strings.ToLower(p))
+		if p == "" {
+			continue
+		}
+		if _, ok := supported[p]; !ok {
+			return nil, nil, fmt.Errorf("unknown provider %q. Supported: vt,urlvoid", p)
+		}
+		requested = append(requested, p)
+	}
+	if len(requested) == 0 {
+		return nil, nil, fmt.Errorf("no valid providers specified. Use --providers vt,urlvoid")
+	}
+
+	// Validate API keys for requested providers
+	vtKey := os.Getenv("VT_API_KEY")
+	urlvoidKey := os.Getenv("URLVOID_API_KEY")
+	for _, p := range requested {
+		switch p {
+		case "vt":
+			if strings.TrimSpace(vtKey) == "" {
+				return nil, nil, fmt.Errorf("VT_API_KEY is required for provider 'vt'")
+			}
+		case "urlvoid":
+			if strings.TrimSpace(urlvoidKey) == "" {
+				return nil, nil, fmt.Errorf("URLVOID_API_KEY is required for provider 'urlvoid'")
+			}
+		}
+	}
+
+	// Build manager and register only requested providers
+	pm := providers.NewManager()
+	for _, p := range requested {
+		switch p {
+		case "vt":
+			pm.Register(providers.NewVirusTotal(providers.VirusTotalConfig{
+				APIKey:  vtKey,
+				Timeout: timeout,
+			}))
+		case "urlvoid":
+			pm.Register(providers.NewURLVoid(providers.URLVoidConfig{
+				APIKey:  urlvoidKey,
+				Timeout: timeout,
+			}))
+		}
+	}
+
+	return pm, requested, nil
 }
