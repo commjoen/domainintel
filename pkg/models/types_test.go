@@ -3,6 +3,7 @@ package models
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 )
@@ -437,22 +438,8 @@ func TestOptionalFieldsOmitEmpty(t *testing.T) {
 	// These fields should be omitted when empty
 	omittedFields := []string{"third_party", "http", "https", "tls", "dns", "whois", "error"}
 	for _, field := range omittedFields {
-		if contains(jsonStr, `"`+field+`"`) {
+		if strings.Contains(jsonStr, `"`+field+`"`) {
 			t.Errorf("Field %s should be omitted when empty", field)
 		}
 	}
-}
-
-// contains checks if a string contains a substring
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsHelper(s, substr))
-}
-
-func containsHelper(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

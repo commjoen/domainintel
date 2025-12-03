@@ -2,6 +2,7 @@ package dns
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 )
@@ -34,7 +35,7 @@ func TestGetSystemDNSServers(t *testing.T) {
 
 	// Verify all servers have port
 	for _, server := range servers {
-		if !contains(server, ":") {
+		if !strings.Contains(server, ":") {
 			t.Errorf("Server %s should have port", server)
 		}
 	}
@@ -162,16 +163,6 @@ type testError struct {
 
 func (e *testError) Error() string {
 	return e.msg
-}
-
-// contains is a helper function
-func contains(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }
 
 // Note: Integration tests that require actual DNS lookups are skipped
@@ -329,7 +320,7 @@ func TestDNSServerConfiguration(t *testing.T) {
 
 	// Verify each server has a port
 	for _, server := range client.dnsServers {
-		if !contains(server, ":") {
+		if !strings.Contains(server, ":") {
 			t.Errorf("DNS server %s should have port", server)
 		}
 	}

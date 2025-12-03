@@ -3,6 +3,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -213,7 +214,7 @@ func TestRunWithTooManyDomains(t *testing.T) {
 	// Create a string with 101 domains
 	domainSlice := make([]string, 101)
 	for i := 0; i < 101; i++ {
-		domainSlice[i] = "domain" + string(rune('a'+i%26)) + ".com"
+		domainSlice[i] = fmt.Sprintf("domain%d.com", i)
 	}
 	domains = strings.Join(domainSlice, ",")
 
