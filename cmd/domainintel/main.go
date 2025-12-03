@@ -16,23 +16,26 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/commjoen/domainintel/internal/crt"
+	"github.com/commjoen/domainintel/internal/dns"
 	"github.com/commjoen/domainintel/internal/output"
+	"github.com/commjoen/domainintel/internal/providers"
 	"github.com/commjoen/domainintel/internal/reachability"
+	"github.com/commjoen/domainintel/internal/whois"
 	"github.com/commjoen/domainintel/pkg/models"
 )
 
 var (
 	// CLI flags
-	domains    string
-	format     string
-	outputFile string
-	timeout    time.Duration
-	concurrent int
-	verbose    bool
-	progress   bool
-	dig        bool
-	whois      bool
-	providers  string
+	domains       string
+	format        string
+	outputFile    string
+	timeout       time.Duration
+	concurrent    int
+	verbose       bool
+	progress      bool
+	enableDig     bool
+	enableWhois   bool
+	providersList string
 
 	// Version information (set during build)
 	version = "dev"
@@ -78,9 +81,9 @@ func init() {
 	rootCmd.Flags().IntVarP(&concurrent, "concurrent", "c", 10, "Maximum concurrent requests")
 	rootCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging")
 	rootCmd.Flags().BoolVarP(&progress, "progress", "p", false, "Show progress bar during scan")
-	rootCmd.Flags().BoolVar(&dig, "dig", false, "Enable extended DNS queries (A/AAAA/MX/TXT/NS/CNAME/SOA)")
-	rootCmd.Flags().BoolVar(&whois, "whois", false, "Enable WHOIS lookups for registration data")
-	rootCmd.Flags().StringVar(&providers, "providers", "", "Comma-separated third-party services: urlvoid,vt")
+	rootCmd.Flags().BoolVar(&enableDig, "dig", false, "Enable extended DNS queries (A/AAAA/MX/TXT/NS/CNAME/SOA)")
+	rootCmd.Flags().BoolVar(&enableWhois, "whois", false, "Enable WHOIS lookups for registration data")
+	rootCmd.Flags().StringVar(&providersList, "providers", "", "Comma-separated third-party services: urlvoid,vt")
 
 	// MarkFlagRequired only returns an error if the flag doesn't exist.
 	// Since we just registered the flag above, this error should never occur in practice.
@@ -139,6 +142,39 @@ func run(cmd *cobra.Command, args []string) error {
 	crtClient := crt.NewClient(timeout)
 	checker := reachability.NewChecker(timeout)
 
+	// Create optional clients based on flags
+	var dnsClient *dns.Client
+	if enableDig {
+		dnsClient = dns.NewClient(timeout)
+	}
+
+	var whoisClient *whois.Client
+	if enableWhois {
+		whoisClient = whois.NewClient(timeout)
+	}
+
+	var providerManager *providers.Manager
+	var providerList []string
+	if providersList != "" {
+		providerManager = providers.NewManager()
+		// Register available providers
+		providerManager.Register(providers.NewVirusTotal(providers.VirusTotalConfig{
+			APIKey:  os.Getenv("VT_API_KEY"),
+			Timeout: timeout,
+		}))
+		providerManager.Register(providers.NewURLVoid(providers.URLVoidConfig{
+			APIKey:  os.Getenv("URLVOID_API_KEY"),
+			Timeout: timeout,
+		}))
+		// Parse provider list
+		for _, p := range strings.Split(providersList, ",") {
+			p = strings.TrimSpace(p)
+			if p != "" {
+				providerList = append(providerList, p)
+			}
+		}
+	}
+
 	// Process each domain
 	result := &models.ScanResult{
 		Timestamp: time.Now().UTC(),
@@ -155,7 +191,7 @@ func run(cmd *cobra.Command, args []string) error {
 		default:
 		}
 
-		domainResult, err := processDomain(ctx, domain, crtClient, checker)
+		domainResult, err := processDomain(ctx, domain, crtClient, checker, dnsClient, whoisClient, providerManager, providerList)
 		if err != nil {
 			if verbose {
 				fmt.Fprintf(os.Stderr, "Error processing %s: %v\n", domain, err)
@@ -193,7 +229,7 @@ func parseDomains(input string) []string {
 	return result
 }
 
-func processDomain(ctx context.Context, domain string, crtClient *crt.Client, checker *reachability.Checker) (*models.DomainResult, error) {
+func processDomain(ctx context.Context, domain string, crtClient *crt.Client, checker *reachability.Checker, dnsClient *dns.Client, whoisClient *whois.Client, providerManager *providers.Manager, providerList []string) (*models.DomainResult, error) {
 	if verbose {
 		fmt.Fprintf(os.Stderr, "Processing domain: %s\n", domain)
 	}
@@ -244,6 +280,36 @@ func processDomain(ctx context.Context, domain string, crtClient *crt.Client, ch
 
 			results[idx] = checker.CheckHost(ctx, hostname)
 
+			// Add DNS records if --dig flag is set
+			if dnsClient != nil {
+				dnsResult := dnsClient.QueryAll(ctx, hostname)
+				results[idx].DNS = convertDNSResult(dnsResult)
+			}
+
+			// Add WHOIS data if --whois flag is set (only for base domain)
+			if whoisClient != nil && hostname == domain {
+				whoisResult := whoisClient.Lookup(ctx, hostname)
+				results[idx].WHOIS = convertWHOISResult(whoisResult)
+			}
+
+			// Add third-party provider results if --providers flag is set
+			if providerManager != nil && len(providerList) > 0 {
+				providerResults := providerManager.Check(ctx, hostname, providerList)
+				if len(providerResults.Results) > 0 {
+					results[idx].ThirdParty = make(map[string]interface{})
+					for _, pr := range providerResults.Results {
+						results[idx].ThirdParty[pr.Provider] = map[string]interface{}{
+							"detected":     pr.Detected,
+							"score":        pr.Score,
+							"categories":   pr.Categories,
+							"details":      pr.Details,
+							"error":        pr.Error,
+							"last_checked": pr.LastChecked,
+						}
+					}
+				}
+			}
+
 			// Update progress
 			if progress {
 				current := atomic.AddInt64(&completed, 1)
@@ -263,6 +329,62 @@ func processDomain(ctx context.Context, domain string, crtClient *crt.Client, ch
 		Name:       domain,
 		Subdomains: results,
 	}, nil
+}
+
+// convertDNSResult converts internal dns.DNSResult to models.DNSResult
+func convertDNSResult(d *dns.DNSResult) *models.DNSResult {
+	if d == nil {
+		return nil
+	}
+	result := &models.DNSResult{
+		A:     d.A,
+		AAAA:  d.AAAA,
+		TXT:   d.TXT,
+		NS:    d.NS,
+		CNAME: d.CNAME,
+		Error: d.Error,
+	}
+	// Convert MX records
+	if len(d.MX) > 0 {
+		result.MX = make([]models.MXRecord, len(d.MX))
+		for i, mx := range d.MX {
+			result.MX[i] = models.MXRecord{
+				Host:     mx.Host,
+				Priority: mx.Priority,
+			}
+		}
+	}
+	// Convert SOA record
+	if d.SOA != nil {
+		result.SOA = &models.SOARecord{
+			PrimaryNS:  d.SOA.PrimaryNS,
+			AdminEmail: d.SOA.AdminEmail,
+			Serial:     d.SOA.Serial,
+			Refresh:    d.SOA.Refresh,
+			Retry:      d.SOA.Retry,
+			Expire:     d.SOA.Expire,
+			MinTTL:     d.SOA.MinTTL,
+		}
+	}
+	return result
+}
+
+// convertWHOISResult converts internal whois.WHOISResult to models.WHOISResult
+func convertWHOISResult(w *whois.WHOISResult) *models.WHOISResult {
+	if w == nil {
+		return nil
+	}
+	return &models.WHOISResult{
+		Registrar:      w.Registrar,
+		RegistrantName: w.RegistrantName,
+		RegistrantOrg:  w.RegistrantOrg,
+		Nameservers:    w.Nameservers,
+		Status:         w.Status,
+		CreationDate:   w.CreationDate,
+		ExpirationDate: w.ExpirationDate,
+		UpdatedDate:    w.UpdatedDate,
+		Error:          w.Error,
+	}
 }
 
 // printProgress displays a progress bar

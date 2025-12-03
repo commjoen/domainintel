@@ -56,6 +56,9 @@ func TestRootCmdFlags(t *testing.T) {
 		{"concurrent", "c", true},
 		{"verbose", "v", false},
 		{"progress", "p", false},
+		{"dig", "", false},
+		{"whois", "", false},
+		{"providers", "", true},
 	}
 
 	for _, flag := range flags {
