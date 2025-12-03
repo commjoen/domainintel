@@ -16,6 +16,10 @@ const (
 	maxSubdomainDisplayLength = 28
 	// truncatedSubdomainLength is the length of truncated subdomain (with space for ellipsis)
 	truncatedSubdomainLength = 25
+	// maxTXTDisplayLength is the maximum length for TXT record display
+	maxTXTDisplayLength = 60
+	// truncatedTXTLength is the length of truncated TXT record (with space for ellipsis)
+	truncatedTXTLength = 57
 )
 
 // Formatter defines the interface for output formatters
@@ -159,8 +163,8 @@ func formatDNSRecords(w io.Writer, dns *models.DNSResult) {
 		for i, txt := range dns.TXT {
 			// Truncate long TXT records for display
 			displayTxt := txt
-			if len(displayTxt) > 60 {
-				displayTxt = displayTxt[:57] + "..."
+			if len(displayTxt) > maxTXTDisplayLength {
+				displayTxt = displayTxt[:truncatedTXTLength] + "..."
 			}
 			if i == 0 {
 				fmt.Fprintf(w, "    TXT:   %s\n", displayTxt)
@@ -229,30 +233,12 @@ func formatThirdPartyResults(w io.Writer, thirdParty map[string]interface{}) {
 			if score, ok := dataMap["score"].(string); ok && score != "" {
 				fmt.Fprintf(w, "      Score:      %s\n", score)
 			}
-			if categories, ok := dataMap["categories"].([]string); ok && len(categories) > 0 {
+			if categories := extractStringSlice(dataMap["categories"]); len(categories) > 0 {
 				fmt.Fprintf(w, "      Categories: %s\n", strings.Join(categories, ", "))
 			}
-			// Handle categories that might be []interface{} from JSON
-			if categories, ok := dataMap["categories"].([]interface{}); ok && len(categories) > 0 {
-				catStrs := make([]string, 0, len(categories))
-				for _, c := range categories {
-					if cs, ok := c.(string); ok {
-						catStrs = append(catStrs, cs)
-					}
-				}
-				if len(catStrs) > 0 {
-					fmt.Fprintf(w, "      Categories: %s\n", strings.Join(catStrs, ", "))
-				}
-			}
-			if details, ok := dataMap["details"].(map[string]string); ok && len(details) > 0 {
+			if details := extractStringMap(dataMap["details"]); len(details) > 0 {
 				for key, value := range details {
 					fmt.Fprintf(w, "      %s: %s\n", key, value)
-				}
-			}
-			// Handle details that might be map[string]interface{} from JSON
-			if details, ok := dataMap["details"].(map[string]interface{}); ok && len(details) > 0 {
-				for key, value := range details {
-					fmt.Fprintf(w, "      %s: %v\n", key, value)
 				}
 			}
 			if errStr, ok := dataMap["error"].(string); ok && errStr != "" {
@@ -260,6 +246,48 @@ func formatThirdPartyResults(w io.Writer, thirdParty map[string]interface{}) {
 			}
 		}
 	}
+}
+
+// extractStringSlice extracts a string slice from interface{} that could be []string or []interface{}
+func extractStringSlice(v interface{}) []string {
+	if v == nil {
+		return nil
+	}
+	// Handle []string directly
+	if strs, ok := v.([]string); ok {
+		return strs
+	}
+	// Handle []interface{} (common when unmarshaling JSON)
+	if ifaces, ok := v.([]interface{}); ok {
+		result := make([]string, 0, len(ifaces))
+		for _, item := range ifaces {
+			if s, ok := item.(string); ok {
+				result = append(result, s)
+			}
+		}
+		return result
+	}
+	return nil
+}
+
+// extractStringMap extracts a string map from interface{} that could be map[string]string or map[string]interface{}
+func extractStringMap(v interface{}) map[string]string {
+	if v == nil {
+		return nil
+	}
+	// Handle map[string]string directly
+	if m, ok := v.(map[string]string); ok {
+		return m
+	}
+	// Handle map[string]interface{} (common when unmarshaling JSON)
+	if m, ok := v.(map[string]interface{}); ok {
+		result := make(map[string]string, len(m))
+		for key, value := range m {
+			result[key] = fmt.Sprintf("%v", value)
+		}
+		return result
+	}
+	return nil
 }
 
 // Format returns the formatted string
