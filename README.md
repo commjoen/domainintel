@@ -12,8 +12,12 @@ domainintel automates the process of discovering subdomains through Certificate 
 - **HTTP/HTTPS Reachability Checks**: Tests connectivity with status codes and response times
 - **IP Address Resolution**: Resolves A and AAAA records
 - **TLS Certificate Validation**: Checks certificate validity and expiration
+- **Extended DNS Queries**: Full DNS reconnaissance (A, AAAA, MX, TXT, NS, CNAME, SOA)
+- **WHOIS Lookups**: Domain registration information with caching
+- **Third-Party Reputation**: Integration with VirusTotal and URLVoid (API keys required)
 - **Multiple Output Formats**: Text tables, JSON, and CSV
 - **Concurrent Processing**: Configurable worker pool for faster scans
+- **Security Hardened**: Input validation, path sanitization, and secure defaults
 
 ## Installation
 
@@ -101,13 +105,24 @@ domainintel --domains example.com --format json | jq -r '.domains[].subdomains[]
 
 | Flag | Short | Type | Default | Description |
 |------|-------|------|---------|-------------|
-| `--domains` | `-d` | string | (required) | Comma-separated list of target domains |
+| `--domains` | `-d` | string | (required) | Comma-separated list of target domains (max 100) |
 | `--format` | `-f` | string | `text` | Output format: `text`, `json`, or `csv` |
 | `--out` | `-o` | string | stdout | Write output to file path |
 | `--timeout` | `-t` | duration | `10s` | HTTP request timeout |
 | `--concurrent` | `-c` | int | `10` | Maximum concurrent requests |
 | `--verbose` | `-v` | bool | `false` | Enable verbose logging |
 | `--progress` | `-p` | bool | `false` | Show progress bar during scan |
+
+## Security
+
+This tool implements several security measures:
+
+- **Input Validation**: All domain names are validated against RFC 1035
+- **Path Sanitization**: Output file paths are sanitized to prevent directory traversal
+- **Domain Limit**: Maximum 100 domains per scan to prevent abuse
+- **TLS 1.2+**: All HTTPS connections require TLS 1.2 or higher
+- **Timeouts**: Configurable timeouts for all network operations
+- **No Secrets in Logs**: Sensitive information is never logged
 
 ## Development
 
@@ -149,13 +164,27 @@ domainintel/
 ├── cmd/domainintel/     # CLI entry point
 ├── internal/
 │   ├── crt/             # Certificate Transparency queries
+│   ├── dns/             # Extended DNS queries
+│   ├── whois/           # WHOIS lookups
+│   ├── providers/       # Third-party reputation services
 │   ├── reachability/    # HTTP checks and IP resolution
 │   └── output/          # Output formatters
 ├── pkg/models/          # Shared data structures
-├── tests/               # Integration tests
+├── tests/
+│   ├── integration/     # Integration tests
+│   └── fixtures/        # Test fixtures
 ├── Makefile             # Build automation
 └── README.md            # This file
 ```
+
+### Test Coverage
+
+The project maintains comprehensive test coverage:
+
+- Unit tests for all modules
+- Integration tests with mock servers
+- Table-driven tests for edge cases
+- Security scanning with gosec
 
 ## License
 

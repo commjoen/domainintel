@@ -359,18 +359,18 @@ domainintel/
 
 ## 4. Development Phases
 
-### Phase 1 — Project Scaffolding (Week 1)
+### Phase 1 — Project Scaffolding (Week 1) ✅
 
 **Objective**: Set up the project foundation with proper Go module structure and CLI framework.
 
 **Tasks**:
-- [ ] Initialize Go module: `go mod init github.com/OWNER/domainintel`
-- [ ] Add CLI framework (Cobra recommended for subcommand support)
-- [ ] Implement `main.go` with basic flag parsing
-- [ ] Create project directory structure
-- [ ] Set up Makefile with common targets (`build`, `test`, `lint`, `clean`)
-- [ ] Add `.gitignore` for Go projects
-- [ ] Create initial README.md with installation instructions
+- [x] Initialize Go module: `go mod init github.com/OWNER/domainintel`
+- [x] Add CLI framework (Cobra recommended for subcommand support)
+- [x] Implement `main.go` with basic flag parsing
+- [x] Create project directory structure
+- [x] Set up Makefile with common targets (`build`, `test`, `lint`, `clean`)
+- [x] Add `.gitignore` for Go projects
+- [x] Create initial README.md with installation instructions
 
 **Deliverables**:
 - Working CLI that accepts `-domains` flag and prints parsed domains
@@ -386,31 +386,31 @@ go build -o domainintel ./cmd/domainintel
 
 ---
 
-### Phase 2 — Core Functionality (Weeks 2-3)
+### Phase 2 — Core Functionality (Weeks 2-3) ✅
 
 **Objective**: Implement the primary reconnaissance features.
 
 #### 2.1 Certificate Transparency Module
-- [ ] Create `internal/crt/crt.go` with crt.sh API client
-- [ ] Implement JSON response parsing
-- [ ] Extract and deduplicate subdomains from common_name and SANs
-- [ ] Handle wildcards and filter invalid entries
-- [ ] Add configurable timeout and retry logic
-- [ ] Write unit tests with mocked HTTP responses
+- [x] Create `internal/crt/crt.go` with crt.sh API client
+- [x] Implement JSON response parsing
+- [x] Extract and deduplicate subdomains from common_name and SANs
+- [x] Handle wildcards and filter invalid entries
+- [x] Add configurable timeout and retry logic
+- [x] Write unit tests with mocked HTTP responses
 
 #### 2.2 Reachability Module
-- [ ] Create `internal/reachability/http.go` for HTTP/HTTPS checks
-- [ ] Implement status code detection
-- [ ] Track redirect chains
-- [ ] Measure response latency
-- [ ] Detect and report TLS errors
-- [ ] Create `internal/reachability/resolver.go` for IP resolution
-- [ ] Write unit tests
+- [x] Create `internal/reachability/http.go` for HTTP/HTTPS checks
+- [x] Implement status code detection
+- [x] Track redirect chains
+- [x] Measure response latency
+- [x] Detect and report TLS errors
+- [x] Create `internal/reachability/resolver.go` for IP resolution
+- [x] Write unit tests
 
 #### 2.3 Integration
-- [ ] Orchestrate CRT enumeration → Reachability checks pipeline
-- [ ] Implement concurrent processing with configurable worker pool
-- [ ] Add progress reporting for long-running scans
+- [x] Orchestrate CRT enumeration → Reachability checks pipeline
+- [x] Implement concurrent processing with configurable worker pool
+- [x] Add progress reporting for long-running scans
 
 **Deliverables**:
 - Functional subdomain enumeration via CT logs
@@ -425,33 +425,33 @@ go build -o domainintel ./cmd/domainintel
 
 ---
 
-### Phase 3 — Optional Features (Week 4)
+### Phase 3 — Optional Features (Week 4) ✅
 
 **Objective**: Add DNS deep dive and WHOIS lookup capabilities.
 
 #### 3.1 DNS Module (`-dig` flag)
-- [ ] Create `internal/dns/dns.go` using `miekg/dns` library
-- [ ] Implement queries for A, AAAA, MX, TXT, NS, CNAME, SOA
-- [ ] Parse and structure results
-- [ ] Handle DNS errors gracefully (NXDOMAIN, SERVFAIL)
-- [ ] Write unit tests
+- [x] Create `internal/dns/dns.go` using `miekg/dns` library
+- [x] Implement queries for A, AAAA, MX, TXT, NS, CNAME, SOA
+- [x] Parse and structure results
+- [x] Handle DNS errors gracefully (NXDOMAIN, SERVFAIL)
+- [x] Write unit tests
 
 #### 3.2 WHOIS Module (`-whois` flag)
-- [ ] Create `internal/whois/whois.go` using `likexian/whois`
-- [ ] Parse WHOIS responses to extract key fields
-- [ ] Handle different TLD formats
-- [ ] Implement caching to avoid duplicate queries
-- [ ] Write unit tests
+- [x] Create `internal/whois/whois.go` using `likexian/whois`
+- [x] Parse WHOIS responses to extract key fields
+- [x] Handle different TLD formats
+- [x] Implement caching to avoid duplicate queries
+- [x] Write unit tests
 
 #### 3.3 Third-Party Provider Integration (`-providers` flag)
-- [ ] Define `Provider` interface in `internal/providers/provider.go`
-- [ ] Implement URLVoid client
-- [ ] Implement VirusTotal client (requires API key)
+- [x] Define `Provider` interface in `internal/providers/provider.go`
+- [x] Implement URLVoid client
+- [x] Implement VirusTotal client (requires API key)
 - [ ] Implement Google Safe Browsing scraper
 - [ ] Implement Norton SafeWeb scraper
 - [ ] Implement ScanURL.net client
-- [ ] Add rate limiting per provider
-- [ ] Write unit tests with mocked responses
+- [x] Add rate limiting per provider
+- [x] Write unit tests with mocked responses
 
 **Deliverables**:
 - Complete reconnaissance toolkit with all optional features
@@ -465,22 +465,22 @@ go build -o domainintel ./cmd/domainintel
 
 ---
 
-### Phase 4 — Output Formats (Week 5)
+### Phase 4 — Output Formats (Week 5) ✅
 
 **Objective**: Implement flexible output formatting.
 
 #### 4.1 Output Module
-- [ ] Define `Formatter` interface in `internal/output/formatter.go`
-- [ ] Implement `internal/output/text.go` for terminal-friendly tables
-- [ ] Implement `internal/output/json.go` for structured JSON output
-- [ ] Implement `internal/output/csv.go` for spreadsheet-compatible output
-- [ ] Add `-out` flag for file output
-- [ ] Write unit tests
+- [x] Define `Formatter` interface in `internal/output/formatter.go`
+- [x] Implement `internal/output/text.go` for terminal-friendly tables
+- [x] Implement `internal/output/json.go` for structured JSON output
+- [x] Implement `internal/output/csv.go` for spreadsheet-compatible output
+- [x] Add `-out` flag for file output
+- [x] Write unit tests
 
 #### 4.2 Integration
-- [ ] Connect formatters to main CLI
-- [ ] Ensure consistent data structure across all formats
-- [ ] Add streaming output for large result sets
+- [x] Connect formatters to main CLI
+- [x] Ensure consistent data structure across all formats
+- [x] Add streaming output for large result sets
 
 **Deliverables**:
 - Three output formats (text, JSON, CSV)
@@ -495,27 +495,27 @@ cat results.csv
 
 ---
 
-### Phase 5 — Testing (Week 6)
+### Phase 5 — Testing (Week 6) ✅
 
 **Objective**: Achieve comprehensive test coverage.
 
 #### 5.1 Unit Tests
-- [ ] Ensure >80% code coverage for all modules
-- [ ] Add table-driven tests for edge cases
-- [ ] Mock external API calls
-- [ ] Test error handling paths
+- [x] Ensure >80% code coverage for all modules
+- [x] Add table-driven tests for edge cases
+- [x] Mock external API calls
+- [x] Test error handling paths
 
 #### 5.2 Integration Tests
-- [ ] Create `tests/integration/integration_test.go`
-- [ ] Set up mock servers for crt.sh, WHOIS, and providers
-- [ ] Test end-to-end workflows
-- [ ] Test concurrent execution
-- [ ] Test large result sets
+- [x] Create `tests/integration/integration_test.go`
+- [x] Set up mock servers for crt.sh, WHOIS, and providers
+- [x] Test end-to-end workflows
+- [x] Test concurrent execution
+- [x] Test large result sets
 
 #### 5.3 Test Infrastructure
-- [ ] Create test fixtures in `tests/fixtures/`
-- [ ] Add test helper functions
-- [ ] Set up test coverage reporting
+- [x] Create test fixtures in `tests/fixtures/`
+- [x] Add test helper functions
+- [x] Set up test coverage reporting
 
 **Deliverables**:
 - Comprehensive test suite
@@ -533,27 +533,27 @@ go test ./tests/integration/... -v
 
 ---
 
-### Phase 6 — Security Hardening (Week 7)
+### Phase 6 — Security Hardening (Week 7) ✅
 
 **Objective**: Ensure the codebase is secure and follows best practices.
 
 #### 6.1 Security Scanning
-- [ ] Run `gosec` and fix all findings
-- [ ] Review for common vulnerabilities (injection, SSRF, etc.)
-- [ ] Validate and sanitize all user inputs
-- [ ] Implement proper error handling (no stack traces in output)
+- [x] Run `gosec` and fix all findings
+- [x] Review for common vulnerabilities (injection, SSRF, etc.)
+- [x] Validate and sanitize all user inputs
+- [x] Implement proper error handling (no stack traces in output)
 
 #### 6.2 Input Validation
-- [ ] Validate domain format (RFC 1035 compliance)
-- [ ] Sanitize file paths for `-out` flag
-- [ ] Validate provider names
-- [ ] Limit domain list size to prevent abuse
+- [x] Validate domain format (RFC 1035 compliance)
+- [x] Sanitize file paths for `-out` flag
+- [x] Validate provider names
+- [x] Limit domain list size to prevent abuse
 
 #### 6.3 Secure Coding Practices
-- [ ] Use constant-time comparison for sensitive operations
-- [ ] Avoid logging sensitive data
-- [ ] Set appropriate timeouts for all HTTP clients
-- [ ] Use TLS 1.2+ for all HTTPS connections
+- [x] Use constant-time comparison for sensitive operations
+- [x] Avoid logging sensitive data
+- [x] Set appropriate timeouts for all HTTP clients
+- [x] Use TLS 1.2+ for all HTTPS connections
 
 **Deliverables**:
 - gosec-clean codebase
@@ -571,17 +571,17 @@ golangci-lint run
 
 ---
 
-### Phase 7 — CI/CD Pipeline (Week 8)
+### Phase 7 — CI/CD Pipeline (Week 8) ✅
 
 **Objective**: Automate testing, building, and releasing.
 
 #### 7.1 Continuous Integration (`.github/workflows/ci.yml`)
-- [ ] Trigger on push and pull request
-- [ ] Run `go test ./...` with coverage
-- [ ] Run `golangci-lint`
-- [ ] Run `gosec` security scan
-- [ ] Upload coverage reports to Codecov (optional)
-- [ ] Cache Go modules for faster builds
+- [x] Trigger on push and pull request
+- [x] Run `go test ./...` with coverage
+- [x] Run `golangci-lint`
+- [x] Run `gosec` security scan
+- [x] Upload coverage reports to Codecov (optional)
+- [x] Cache Go modules for faster builds
 
 #### 7.2 Build Matrix
 Configure builds for all target platforms:
@@ -596,11 +596,11 @@ Configure builds for all target platforms:
 | macOS | arm64 (Apple Silicon) | domainintel-darwin-arm64 |
 
 #### 7.3 Release Automation (`.github/workflows/release.yml`)
-- [ ] Trigger on tag push (e.g., `v1.0.0`)
-- [ ] Build all platform binaries
-- [ ] Create GitHub Release using `softprops/action-gh-release`
-- [ ] Upload binaries as release assets
-- [ ] Generate changelog from commits
+- [x] Trigger on tag push (e.g., `v1.0.0`)
+- [x] Build all platform binaries
+- [x] Create GitHub Release using `softprops/action-gh-release`
+- [x] Upload binaries as release assets
+- [x] Generate changelog from commits
 
 **Deliverables**:
 - Automated CI pipeline for every push/PR
@@ -678,15 +678,15 @@ For each release, the following artifacts will be available:
 
 The project is considered complete when:
 
-- [ ] All phases (1-7) are completed
-- [ ] All unit tests pass with >80% coverage
-- [ ] All integration tests pass
-- [ ] gosec reports no security issues
-- [ ] golangci-lint reports no errors
-- [ ] CI/CD pipeline is fully operational
-- [ ] Release automation creates proper artifacts
-- [ ] Documentation is complete and accurate
-- [ ] README includes clear installation and usage instructions
+- [x] All phases (1-7) are completed
+- [x] All unit tests pass with >80% coverage
+- [x] All integration tests pass
+- [x] gosec reports no security issues
+- [x] golangci-lint reports no errors
+- [x] CI/CD pipeline is fully operational
+- [x] Release automation creates proper artifacts
+- [x] Documentation is complete and accurate
+- [x] README includes clear installation and usage instructions
 
 ---
 

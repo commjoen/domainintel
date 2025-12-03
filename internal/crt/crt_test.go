@@ -252,3 +252,122 @@ func TestQueryCRTshMockServer(t *testing.T) {
 		})
 	}
 }
+
+func TestProcessHostname(t *testing.T) {
+	tests := []struct {
+		name       string
+		hostname   string
+		baseDomain string
+		wantAdded  bool
+	}{
+		{"valid hostname", "www.example.com", "example.com", true},
+		{"empty hostname", "", "example.com", false},
+		{"whitespace only", "   ", "example.com", false},
+		{"different domain", "www.other.com", "example.com", false},
+		{"wildcard prefix", "*.example.com", "example.com", true},
+		{"base domain itself", "example.com", "example.com", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			seen := make(map[string]bool)
+			var subdomains []string
+			processHostname(tt.hostname, tt.baseDomain, seen, &subdomains)
+			if (len(subdomains) > 0) != tt.wantAdded {
+				t.Errorf("processHostname(%q, %q) added=%v, want %v",
+					tt.hostname, tt.baseDomain, len(subdomains) > 0, tt.wantAdded)
+			}
+		})
+	}
+}
+
+func TestProcessHostnameDedupe(t *testing.T) {
+	seen := make(map[string]bool)
+	var subdomains []string
+
+	// Add hostname first time
+	processHostname("www.example.com", "example.com", seen, &subdomains)
+	if len(subdomains) != 1 {
+		t.Errorf("Expected 1 subdomain after first add, got %d", len(subdomains))
+	}
+
+	// Try to add same hostname again
+	processHostname("www.example.com", "example.com", seen, &subdomains)
+	if len(subdomains) != 1 {
+		t.Errorf("Expected still 1 subdomain after duplicate add, got %d", len(subdomains))
+	}
+}
+
+func TestExtractSubdomainsComplexEntries(t *testing.T) {
+	entries := []models.CRTEntry{
+		{
+			CommonName: "www.example.com",
+			NameValue:  "www.example.com\n*.example.com\nmail.example.com",
+		},
+		{
+			CommonName: "*.api.example.com",
+			NameValue:  "api.example.com\ntest.api.example.com",
+		},
+		{
+			// Entry with hostname from different domain (should be filtered)
+			CommonName: "www.other.com",
+			NameValue:  "www.other.com",
+		},
+	}
+
+	subdomains := extractSubdomains(entries, "example.com")
+
+	// Should have: api.example.com, example.com, mail.example.com, test.api.example.com, www.example.com
+	expectedCount := 5
+	if len(subdomains) != expectedCount {
+		t.Errorf("Expected %d subdomains, got %d: %v", expectedCount, len(subdomains), subdomains)
+	}
+
+	// Verify sorted order
+	for i := 1; i < len(subdomains); i++ {
+		if subdomains[i] < subdomains[i-1] {
+			t.Errorf("Subdomains should be sorted, but %q comes after %q", subdomains[i], subdomains[i-1])
+		}
+	}
+}
+
+func TestValidateDomainEdgeCases(t *testing.T) {
+	tests := []struct {
+		name    string
+		domain  string
+		wantErr bool
+	}{
+		{"valid two-letter TLD", "example.co", false},
+		{"valid long TLD", "example.technology", false},
+		{"numeric subdomain", "123.example.com", false},
+		{"hyphen in middle", "my-site.example.com", false},
+		{"consecutive hyphens", "my--site.example.com", false},
+		{"single char subdomain", "a.example.com", false},
+		{"max length label", string(make([]byte, 63)) + ".com", true}, // 63 chars is max for a label
+		{"underscore", "my_site.example.com", true},
+		{"special chars", "mysite!.example.com", true},
+		{"unicode", "tëst.example.com", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateDomain(tt.domain)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateDomain(%q) error = %v, wantErr %v", tt.domain, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestQuerySubdomainsContextCancellation(t *testing.T) {
+	client := NewClient(10 * time.Second)
+
+	// Create a canceled context
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := client.QuerySubdomains(ctx, "example.com")
+	if err == nil {
+		t.Error("Expected error for canceled context")
+	}
+}

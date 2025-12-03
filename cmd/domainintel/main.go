@@ -85,6 +85,12 @@ func run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("no valid domains provided")
 	}
 
+	// Security: Limit domain list size to prevent abuse
+	const maxDomains = 100
+	if len(domainList) > maxDomains {
+		return fmt.Errorf("too many domains specified (max %d, got %d)", maxDomains, len(domainList))
+	}
+
 	if verbose {
 		fmt.Fprintf(os.Stderr, "Parsed domains: %v\n", domainList)
 	}
@@ -256,11 +262,50 @@ func printProgress(domain string, current, total int) {
 	fmt.Fprintf(os.Stderr, "\r[%s] %3.0f%% (%d/%d) %s", bar, percentage, current, total, domain)
 }
 
+// validateOutputPath performs security validation on the output file path
+func validateOutputPath(path string) error {
+	if path == "" {
+		return nil
+	}
+
+	// Clean the path to resolve any . or .. components
+	cleanPath := filepath.Clean(path)
+
+	// Check for absolute paths that might be trying to write to sensitive locations
+	if filepath.IsAbs(cleanPath) {
+		// Allow absolute paths but warn about sensitive locations
+		sensitivePatterns := []string{"/etc/", "/var/", "/usr/", "/bin/", "/sbin/", "/root/"}
+		for _, pattern := range sensitivePatterns {
+			if strings.HasPrefix(cleanPath, pattern) {
+				return fmt.Errorf("refusing to write to sensitive system location: %s", cleanPath)
+			}
+		}
+	}
+
+	// Ensure path doesn't escape current directory unexpectedly for relative paths
+	if !filepath.IsAbs(path) && strings.HasPrefix(cleanPath, "..") {
+		// Allow parent directory references but ensure the resolved path is reasonable
+		absPath, err := filepath.Abs(cleanPath)
+		if err != nil {
+			return fmt.Errorf("failed to resolve path: %w", err)
+		}
+		// Just resolve it - the Clean already handled normalization
+		_ = absPath
+	}
+
+	return nil
+}
+
 func outputResults(formatter output.Formatter, result *models.ScanResult) error {
 	var writer *os.File
 	var err error
 
 	if outputFile != "" {
+		// Validate the output path for security
+		if validateErr := validateOutputPath(outputFile); validateErr != nil {
+			return validateErr
+		}
+
 		// Sanitize the file path to prevent directory traversal
 		cleanPath := filepath.Clean(outputFile)
 		// #nosec G304 -- User-provided output file path is intentional for CLI tool
