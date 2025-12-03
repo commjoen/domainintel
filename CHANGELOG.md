@@ -5,9 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.1]
+## [0.1.2] - 2025-12-03
 
 ### Added
+- **Automatic Version Update Checking**
+  - `--version` flag now checks GitHub for latest release
+  - Shows update notification when newer version is available
+  - Displays download link and update instructions
+  - 3-second timeout to avoid hanging
+  - Non-blocking with graceful fallback on network errors
+  - GitHub API integration for release checking
+
+## [0.1.1] - 2025-12-03
+
+### Added
+
 - **Certificate Transparency (CT) Log Integration**
   - Query crt.sh for subdomain enumeration
   - Automatic subdomain discovery from CT logs
@@ -78,6 +90,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced provider flag description with API key requirements
 - Better error messages throughout the application
 - Consistent code formatting and linting
+- Version output now includes update check and status indicator
 
 ### Technical Details
 - Built with Go 1.21+
@@ -102,6 +115,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ```bash
 # Simple subdomain enumeration
 domainintel --domains example.com
+
+# Check version and updates
+domainintel --version
 
 # Full reconnaissance with DNS and WHOIS
 domainintel --domains example.com --dig --whois
@@ -158,6 +174,8 @@ domainintel --domains example.com \
 - [ ] Retry logic for failed requests
 - [ ] Cache management commands
 - [ ] Export to additional formats (HTML, Markdown)
+- [ ] Semantic version comparison for update checks
 
-[Unreleased]: https://github.com/commjoen/domainintel/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/commjoen/domainintel/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/commjoen/domainintel/releases/tag/v0.1.1
 [0.1.0]: https://github.com/commjoen/domainintel/releases/tag/v0.1.0
