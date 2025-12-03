@@ -1,0 +1,109 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test -v ./...
+
+      - name: Build all platforms
+        run: |
+          mkdir -p dist
+          
+          # Linux amd64
+          GOOS=linux GOARCH=amd64 go build -ldflags "-X main.version=${{ steps.version.outputs.VERSION }}" \
+            -o dist/domainintel-linux-amd64 ./cmd/domainintel
+          
+          # Linux arm64
+          GOOS=linux GOARCH=arm64 go build -ldflags "-X main.version=${{ steps.version.outputs.VERSION }}" \
+            -o dist/domainintel-linux-arm64 ./cmd/domainintel
+          
+          # macOS amd64 (Intel)
+          GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.version=${{ steps.version.outputs.VERSION }}" \
+            -o dist/domainintel-darwin-amd64 ./cmd/domainintel
+          
+          # macOS arm64 (Apple Silicon)
+          GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.version=${{ steps.version.outputs.VERSION }}" \
+            -o dist/domainintel-darwin-arm64 ./cmd/domainintel
+          
+          # Windows amd64
+          GOOS=windows GOARCH=amd64 go build -ldflags "-X main.version=${{ steps.version.outputs.VERSION }}" \
+            -o dist/domainintel-windows-amd64.exe ./cmd/domainintel
+          
+          # Windows arm64
+          GOOS=windows GOARCH=arm64 go build -ldflags "-X main.version=${{ steps.version.outputs.VERSION }}" \
+            -o dist/domainintel-windows-arm64.exe ./cmd/domainintel
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum * > checksums.txt
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get the previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          
+          if [ -z "$PREV_TAG" ]; then
+            # First release - get all commits
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" HEAD)
+          else
+            # Get commits since previous tag
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" ${PREV_TAG}..HEAD)
+          fi
+          
+          # Write to file for the release
+          echo "## What's Changed" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "$CHANGELOG" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "## Checksums" >> CHANGELOG.md
+          echo '```' >> CHANGELOG.md
+          cat dist/checksums.txt >> CHANGELOG.md
+          echo '```' >> CHANGELOG.md
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: CHANGELOG.md
+          files: |
+            dist/domainintel-linux-amd64
+            dist/domainintel-linux-arm64
+            dist/domainintel-darwin-amd64
+            dist/domainintel-darwin-arm64
+            dist/domainintel-windows-amd64.exe
+            dist/domainintel-windows-arm64.exe
+            dist/checksums.txt
+          draft: false
+          prerelease: ${{ contains(github.ref, '-alpha') || contains(github.ref, '-beta') || contains(github.ref, '-rc') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

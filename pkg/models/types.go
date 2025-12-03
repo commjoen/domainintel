@@ -5,13 +5,58 @@ import "time"
 
 // SubdomainResult represents the reconnaissance results for a single subdomain
 type SubdomainResult struct {
-	Hostname    string       `json:"hostname"`
-	IPs         []string     `json:"ips"`
-	HTTP        *HTTPResult  `json:"http,omitempty"`
-	HTTPS       *HTTPResult  `json:"https,omitempty"`
-	TLS         *TLSResult   `json:"tls,omitempty"`
-	Reachable   bool         `json:"reachable"`
-	Error       string       `json:"error,omitempty"`
+	Hostname    string            `json:"hostname"`
+	IPs         []string          `json:"ips"`
+	HTTP        *HTTPResult       `json:"http,omitempty"`
+	HTTPS       *HTTPResult       `json:"https,omitempty"`
+	TLS         *TLSResult        `json:"tls,omitempty"`
+	DNS         *DNSResult        `json:"dns,omitempty"`
+	WHOIS       *WHOISResult      `json:"whois,omitempty"`
+	ThirdParty  map[string]interface{} `json:"third_party,omitempty"`
+	Reachable   bool              `json:"reachable"`
+	Error       string            `json:"error,omitempty"`
+}
+
+// DNSResult contains extended DNS query results
+type DNSResult struct {
+	A      []string   `json:"a,omitempty"`
+	AAAA   []string   `json:"aaaa,omitempty"`
+	MX     []MXRecord `json:"mx,omitempty"`
+	TXT    []string   `json:"txt,omitempty"`
+	NS     []string   `json:"ns,omitempty"`
+	CNAME  string     `json:"cname,omitempty"`
+	SOA    *SOARecord `json:"soa,omitempty"`
+	Error  string     `json:"error,omitempty"`
+}
+
+// MXRecord represents a mail exchanger record
+type MXRecord struct {
+	Priority uint16 `json:"priority"`
+	Host     string `json:"host"`
+}
+
+// SOARecord represents a Start of Authority record
+type SOARecord struct {
+	PrimaryNS  string `json:"primary_ns"`
+	AdminEmail string `json:"admin_email"`
+	Serial     uint32 `json:"serial"`
+	Refresh    uint32 `json:"refresh"`
+	Retry      uint32 `json:"retry"`
+	Expire     uint32 `json:"expire"`
+	MinTTL     uint32 `json:"min_ttl"`
+}
+
+// WHOISResult contains parsed WHOIS information
+type WHOISResult struct {
+	Registrar        string     `json:"registrar,omitempty"`
+	RegistrantName   string     `json:"registrant_name,omitempty"`
+	RegistrantOrg    string     `json:"registrant_org,omitempty"`
+	CreationDate     *time.Time `json:"creation_date,omitempty"`
+	ExpirationDate   *time.Time `json:"expiration_date,omitempty"`
+	UpdatedDate      *time.Time `json:"updated_date,omitempty"`
+	Nameservers      []string   `json:"nameservers,omitempty"`
+	Status           []string   `json:"status,omitempty"`
+	Error            string     `json:"error,omitempty"`
 }
 
 // HTTPResult contains HTTP/HTTPS check results
