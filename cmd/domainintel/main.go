@@ -30,6 +30,9 @@ var (
 	concurrent int
 	verbose    bool
 	progress   bool
+	dig        bool
+	whois      bool
+	providers  string
 
 	// Version information (set during build)
 	version = "dev"
@@ -57,7 +60,13 @@ and validating TLS certificates.`,
   domainintel --domains example.com,example.org --format json
 
   # Save results to file
-  domainintel --domains example.com --format csv --out results.csv`,
+  domainintel --domains example.com --format csv --out results.csv
+
+  # Full reconnaissance with DNS and WHOIS
+  domainintel --domains example.com --dig --whois
+
+  # Use third-party reputation services (API keys required)
+  domainintel --domains example.com --providers vt,urlvoid`,
 	RunE: run,
 }
 
@@ -69,6 +78,9 @@ func init() {
 	rootCmd.Flags().IntVarP(&concurrent, "concurrent", "c", 10, "Maximum concurrent requests")
 	rootCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging")
 	rootCmd.Flags().BoolVarP(&progress, "progress", "p", false, "Show progress bar during scan")
+	rootCmd.Flags().BoolVar(&dig, "dig", false, "Enable extended DNS queries (A/AAAA/MX/TXT/NS/CNAME/SOA)")
+	rootCmd.Flags().BoolVar(&whois, "whois", false, "Enable WHOIS lookups for registration data")
+	rootCmd.Flags().StringVar(&providers, "providers", "", "Comma-separated third-party services: urlvoid,vt")
 
 	// MarkFlagRequired only returns an error if the flag doesn't exist.
 	// Since we just registered the flag above, this error should never occur in practice.
