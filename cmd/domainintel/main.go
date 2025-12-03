@@ -244,9 +244,15 @@ func processDomain(ctx context.Context, domain string, crtClient *crt.Client, ch
 		fmt.Fprintf(os.Stderr, "Found %d subdomains for %s\n", len(subdomains), domain)
 	}
 
-	// If no subdomains found, add the base domain
-	if len(subdomains) == 0 {
-		subdomains = []string{domain}
+	// Ensure the base domain is included so WHOIS runs
+	// Deduplicate entries
+	seen := make(map[string]struct{}, len(subdomains)+1)
+	for _, s := range subdomains {
+		seen[s] = struct{}{}
+	}
+	if _, ok := seen[domain]; !ok {
+		subdomains = append(subdomains, domain)
+		seen[domain] = struct{}{}
 	}
 
 	total := len(subdomains)
