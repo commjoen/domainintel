@@ -106,6 +106,21 @@ func (f *TextFormatter) Write(w io.Writer, result *models.ScanResult) error {
 			}
 
 			fmt.Fprintf(w, "%-30s %-18s %-8s %-5s %s\n", subdomain, ip, status, tlsStatus, responseTime)
+
+			// Display DNS records if present (--dig flag was used)
+			if sub.DNS != nil {
+				formatDNSRecords(w, sub.DNS)
+			}
+
+			// Display WHOIS information if present (--whois flag was used)
+			if sub.WHOIS != nil {
+				formatWHOISInfo(w, sub.WHOIS)
+			}
+
+			// Display third-party provider results if present (--providers flag was used)
+			if len(sub.ThirdParty) > 0 {
+				formatThirdPartyResults(w, sub.ThirdParty)
+			}
 		}
 
 		fmt.Fprintln(w, separator)
@@ -119,6 +134,132 @@ func (f *TextFormatter) Write(w io.Writer, result *models.ScanResult) error {
 	}
 
 	return nil
+}
+
+// formatDNSRecords formats DNS records for plaintext output
+func formatDNSRecords(w io.Writer, dns *models.DNSResult) {
+	fmt.Fprintf(w, "  DNS Records:\n")
+	if len(dns.A) > 0 {
+		fmt.Fprintf(w, "    A:     %s\n", strings.Join(dns.A, ", "))
+	}
+	if len(dns.AAAA) > 0 {
+		fmt.Fprintf(w, "    AAAA:  %s\n", strings.Join(dns.AAAA, ", "))
+	}
+	if len(dns.MX) > 0 {
+		mxRecords := make([]string, len(dns.MX))
+		for i, mx := range dns.MX {
+			mxRecords[i] = fmt.Sprintf("%s (pri: %d)", mx.Host, mx.Priority)
+		}
+		fmt.Fprintf(w, "    MX:    %s\n", strings.Join(mxRecords, ", "))
+	}
+	if len(dns.NS) > 0 {
+		fmt.Fprintf(w, "    NS:    %s\n", strings.Join(dns.NS, ", "))
+	}
+	if len(dns.TXT) > 0 {
+		for i, txt := range dns.TXT {
+			// Truncate long TXT records for display
+			displayTxt := txt
+			if len(displayTxt) > 60 {
+				displayTxt = displayTxt[:57] + "..."
+			}
+			if i == 0 {
+				fmt.Fprintf(w, "    TXT:   %s\n", displayTxt)
+			} else {
+				fmt.Fprintf(w, "           %s\n", displayTxt)
+			}
+		}
+	}
+	if dns.CNAME != "" {
+		fmt.Fprintf(w, "    CNAME: %s\n", dns.CNAME)
+	}
+	if dns.SOA != nil {
+		fmt.Fprintf(w, "    SOA:   %s (admin: %s, serial: %d)\n",
+			dns.SOA.PrimaryNS, dns.SOA.AdminEmail, dns.SOA.Serial)
+	}
+	if dns.Error != "" {
+		fmt.Fprintf(w, "    Error: %s\n", dns.Error)
+	}
+}
+
+// formatWHOISInfo formats WHOIS information for plaintext output
+func formatWHOISInfo(w io.Writer, whois *models.WHOISResult) {
+	fmt.Fprintf(w, "  WHOIS Information:\n")
+	if whois.Registrar != "" {
+		fmt.Fprintf(w, "    Registrar:   %s\n", whois.Registrar)
+	}
+	if whois.RegistrantOrg != "" {
+		fmt.Fprintf(w, "    Organization: %s\n", whois.RegistrantOrg)
+	}
+	if whois.RegistrantName != "" {
+		fmt.Fprintf(w, "    Registrant:  %s\n", whois.RegistrantName)
+	}
+	if whois.CreationDate != nil {
+		fmt.Fprintf(w, "    Created:     %s\n", whois.CreationDate.Format("2006-01-02"))
+	}
+	if whois.ExpirationDate != nil {
+		fmt.Fprintf(w, "    Expires:     %s\n", whois.ExpirationDate.Format("2006-01-02"))
+	}
+	if whois.UpdatedDate != nil {
+		fmt.Fprintf(w, "    Updated:     %s\n", whois.UpdatedDate.Format("2006-01-02"))
+	}
+	if len(whois.Nameservers) > 0 {
+		fmt.Fprintf(w, "    Nameservers: %s\n", strings.Join(whois.Nameservers, ", "))
+	}
+	if len(whois.Status) > 0 {
+		fmt.Fprintf(w, "    Status:      %s\n", strings.Join(whois.Status, ", "))
+	}
+	if whois.Error != "" {
+		fmt.Fprintf(w, "    Error:       %s\n", whois.Error)
+	}
+}
+
+// formatThirdPartyResults formats third-party provider results for plaintext output
+func formatThirdPartyResults(w io.Writer, thirdParty map[string]interface{}) {
+	fmt.Fprintf(w, "  Third-Party Providers:\n")
+	for provider, data := range thirdParty {
+		fmt.Fprintf(w, "    %s:\n", provider)
+		if dataMap, ok := data.(map[string]interface{}); ok {
+			if detected, ok := dataMap["detected"].(bool); ok {
+				if detected {
+					fmt.Fprintf(w, "      Detected:   Yes\n")
+				} else {
+					fmt.Fprintf(w, "      Detected:   No\n")
+				}
+			}
+			if score, ok := dataMap["score"].(string); ok && score != "" {
+				fmt.Fprintf(w, "      Score:      %s\n", score)
+			}
+			if categories, ok := dataMap["categories"].([]string); ok && len(categories) > 0 {
+				fmt.Fprintf(w, "      Categories: %s\n", strings.Join(categories, ", "))
+			}
+			// Handle categories that might be []interface{} from JSON
+			if categories, ok := dataMap["categories"].([]interface{}); ok && len(categories) > 0 {
+				catStrs := make([]string, 0, len(categories))
+				for _, c := range categories {
+					if cs, ok := c.(string); ok {
+						catStrs = append(catStrs, cs)
+					}
+				}
+				if len(catStrs) > 0 {
+					fmt.Fprintf(w, "      Categories: %s\n", strings.Join(catStrs, ", "))
+				}
+			}
+			if details, ok := dataMap["details"].(map[string]string); ok && len(details) > 0 {
+				for key, value := range details {
+					fmt.Fprintf(w, "      %s: %s\n", key, value)
+				}
+			}
+			// Handle details that might be map[string]interface{} from JSON
+			if details, ok := dataMap["details"].(map[string]interface{}); ok && len(details) > 0 {
+				for key, value := range details {
+					fmt.Fprintf(w, "      %s: %v\n", key, value)
+				}
+			}
+			if errStr, ok := dataMap["error"].(string); ok && errStr != "" {
+				fmt.Fprintf(w, "      Error:      %s\n", errStr)
+			}
+		}
+	}
 }
 
 // Format returns the formatted string
