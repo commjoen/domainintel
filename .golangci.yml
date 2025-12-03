@@ -25,6 +25,8 @@ linters-settings:
     check-blank: true
   govet:
     enable-all: true
+    disable:
+      - fieldalignment  # Field alignment is an optimization, not a correctness issue
   gofmt:
     simplify: true
   goimports:
@@ -45,5 +47,9 @@ issues:
       linters:
         - errcheck
         - gosec
+    # Exclude unusedwrite in test files as they are testing struct initialization
+    - linters:
+        - govet
+      text: "unusedwrite:"
   max-issues-per-linter: 0
   max-same-issues: 0

@@ -13,8 +13,8 @@ import (
 
 // VirusTotal is a provider for VirusTotal reputation checks
 type VirusTotal struct {
-	apiKey  string
 	baseURL string
+	apiKey  string
 	client  *http.Client
 }
 

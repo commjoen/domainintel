@@ -46,9 +46,9 @@ func TestValidateDomain(t *testing.T) {
 
 func TestNormalizeDomain(t *testing.T) {
 	tests := []struct {
-		name   string
-		input  string
-		want   string
+		name  string
+		input string
+		want  string
 	}{
 		{"plain domain", "example.com", "example.com"},
 		{"wildcard with dot", "*.example.com", "example.com"},

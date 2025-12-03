@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	defaultTimeout      = 10 * time.Second
-	maxRedirects        = 10
-	defaultDNSTimeout   = 5 * time.Second
+	defaultTimeout    = 10 * time.Second
+	maxRedirects      = 10
+	defaultDNSTimeout = 5 * time.Second
 )
 
 // Checker provides methods to check host reachability

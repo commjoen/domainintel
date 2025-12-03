@@ -11,7 +11,7 @@ import (
 func TestNewManager(t *testing.T) {
 	manager := NewManager()
 	if manager == nil {
-		t.Error("Expected manager to be non-nil")
+		t.Fatal("Expected manager to be non-nil")
 	}
 	if manager.providers == nil {
 		t.Error("Expected providers map to be initialized")
@@ -87,7 +87,7 @@ func TestCache(t *testing.T) {
 	cached := cache.Get("test", "example.com")
 
 	if cached == nil {
-		t.Error("Expected cached result")
+		t.Fatal("Expected cached result")
 	}
 	if cached.Provider != "test" {
 		t.Errorf("Expected provider 'test', got %s", cached.Provider)

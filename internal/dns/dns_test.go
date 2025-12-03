@@ -181,7 +181,7 @@ func contains(s, substr string) bool {
 func TestQueryAllCancellation(t *testing.T) {
 	client := NewClient(1 * time.Second)
 
-	// Create a cancelled context
+	// Create a canceled context
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 

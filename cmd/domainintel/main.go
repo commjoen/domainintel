@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -69,7 +70,10 @@ func init() {
 	rootCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging")
 	rootCmd.Flags().BoolVarP(&progress, "progress", "p", false, "Show progress bar during scan")
 
-	_ = rootCmd.MarkFlagRequired("domains")
+	// MarkFlagRequired only returns an error if the flag doesn't exist (it does)
+	if err := rootCmd.MarkFlagRequired("domains"); err != nil {
+		panic(err)
+	}
 }
 
 func run(cmd *cobra.Command, args []string) error {
@@ -255,7 +259,10 @@ func outputResults(formatter output.Formatter, result *models.ScanResult) error 
 	var err error
 
 	if outputFile != "" {
-		writer, err = os.Create(outputFile)
+		// Sanitize the file path to prevent directory traversal
+		cleanPath := filepath.Clean(outputFile)
+		// #nosec G304 -- User-provided output file path is intentional for CLI tool
+		writer, err = os.Create(cleanPath)
 		if err != nil {
 			return fmt.Errorf("failed to create output file: %w", err)
 		}

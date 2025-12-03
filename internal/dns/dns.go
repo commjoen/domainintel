@@ -21,20 +21,20 @@ const (
 
 // DNSResult contains all DNS query results for a hostname
 type DNSResult struct {
-	A      []string   `json:"a,omitempty"`
-	AAAA   []string   `json:"aaaa,omitempty"`
-	MX     []MXRecord `json:"mx,omitempty"`
-	TXT    []string   `json:"txt,omitempty"`
-	NS     []string   `json:"ns,omitempty"`
-	CNAME  string     `json:"cname,omitempty"`
-	SOA    *SOARecord `json:"soa,omitempty"`
-	Error  string     `json:"error,omitempty"`
+	A     []string   `json:"a,omitempty"`
+	AAAA  []string   `json:"aaaa,omitempty"`
+	MX    []MXRecord `json:"mx,omitempty"`
+	TXT   []string   `json:"txt,omitempty"`
+	NS    []string   `json:"ns,omitempty"`
+	SOA   *SOARecord `json:"soa,omitempty"`
+	CNAME string     `json:"cname,omitempty"`
+	Error string     `json:"error,omitempty"`
 }
 
 // MXRecord represents a mail exchanger record
 type MXRecord struct {
-	Priority uint16 `json:"priority"`
 	Host     string `json:"host"`
+	Priority uint16 `json:"priority"`
 }
 
 // SOARecord represents a Start of Authority record
@@ -50,9 +50,9 @@ type SOARecord struct {
 
 // Client provides DNS query functionality
 type Client struct {
+	dnsServers []string
 	timeout    time.Duration
 	retries    int
-	dnsServers []string
 }
 
 // NewClient creates a new DNS client with the specified timeout
