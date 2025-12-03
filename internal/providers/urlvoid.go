@@ -13,8 +13,8 @@ import (
 
 // URLVoid is a provider for URLVoid reputation checks
 type URLVoid struct {
-	apiKey  string
 	baseURL string
+	apiKey  string
 	client  *http.Client
 }
 

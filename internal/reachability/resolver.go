@@ -67,10 +67,10 @@ func (r *Resolver) LookupAll(ctx context.Context, hostname string) (ipv4 []strin
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 
-	// Lookup IPv4
+	// Lookup IPv4 - continue even if this fails, we'll check both types
 	ipv4, _ = r.LookupA(ctx, hostname)
 
-	// Lookup IPv6
+	// Lookup IPv6 - continue even if this fails, we'll check both types
 	ipv6, _ = r.LookupAAAA(ctx, hostname)
 
 	// Return error only if both lookups failed

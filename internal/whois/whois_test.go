@@ -142,7 +142,7 @@ func TestClientCaching(t *testing.T) {
 	// Retrieve from cache
 	cached := client.getFromCache("example.com")
 	if cached == nil {
-		t.Error("Expected cached result, got nil")
+		t.Fatal("Expected cached result, got nil")
 	}
 	if cached.Registrar != "Test Registrar" {
 		t.Errorf("Expected Registrar 'Test Registrar', got %s", cached.Registrar)
@@ -176,7 +176,7 @@ func TestLookupInvalidDomain(t *testing.T) {
 func TestLookupCancellation(t *testing.T) {
 	client := NewClient(30 * time.Second)
 
-	// Create a cancelled context
+	// Create a canceled context
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 

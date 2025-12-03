@@ -18,25 +18,25 @@ const (
 
 // WHOISResult contains parsed WHOIS information
 type WHOISResult struct {
-	Registrar        string     `json:"registrar,omitempty"`
-	RegistrantName   string     `json:"registrant_name,omitempty"`
-	RegistrantOrg    string     `json:"registrant_org,omitempty"`
-	RegistrantEmail  string     `json:"registrant_email,omitempty"`
-	CreationDate     *time.Time `json:"creation_date,omitempty"`
-	ExpirationDate   *time.Time `json:"expiration_date,omitempty"`
-	UpdatedDate      *time.Time `json:"updated_date,omitempty"`
-	Nameservers      []string   `json:"nameservers,omitempty"`
-	Status           []string   `json:"status,omitempty"`
-	DNSSEC           string     `json:"dnssec,omitempty"`
-	RawText          string     `json:"raw_text,omitempty"`
-	Error            string     `json:"error,omitempty"`
+	Registrar       string     `json:"registrar,omitempty"`
+	RegistrantName  string     `json:"registrant_name,omitempty"`
+	RegistrantOrg   string     `json:"registrant_org,omitempty"`
+	RegistrantEmail string     `json:"registrant_email,omitempty"`
+	Nameservers     []string   `json:"nameservers,omitempty"`
+	Status          []string   `json:"status,omitempty"`
+	CreationDate    *time.Time `json:"creation_date,omitempty"`
+	ExpirationDate  *time.Time `json:"expiration_date,omitempty"`
+	UpdatedDate     *time.Time `json:"updated_date,omitempty"`
+	DNSSEC          string     `json:"dnssec,omitempty"`
+	RawText         string     `json:"raw_text,omitempty"`
+	Error           string     `json:"error,omitempty"`
 }
 
 // Client provides WHOIS lookup functionality with caching
 type Client struct {
-	timeout time.Duration
 	cache   map[string]*cachedResult
 	mu      sync.RWMutex
+	timeout time.Duration
 	ttl     time.Duration
 }
 
@@ -96,7 +96,7 @@ func (c *Client) performLookup(ctx context.Context, domain string) *WHOISResult 
 	// Wait for result or context cancellation
 	select {
 	case <-ctx.Done():
-		result.Error = "WHOIS lookup cancelled"
+		result.Error = "WHOIS lookup canceled"
 		return result
 	case <-time.After(c.timeout):
 		result.Error = "WHOIS lookup timeout"

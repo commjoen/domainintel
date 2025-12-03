@@ -22,12 +22,12 @@ type Provider interface {
 // Result contains the reputation check result from a provider
 type Result struct {
 	Provider    string            `json:"provider"`
-	Detected    bool              `json:"detected"`
 	Score       string            `json:"score,omitempty"`
 	Categories  []string          `json:"categories,omitempty"`
 	Details     map[string]string `json:"details,omitempty"`
-	LastChecked time.Time         `json:"last_checked"`
 	Error       string            `json:"error,omitempty"`
+	LastChecked time.Time         `json:"last_checked"`
+	Detected    bool              `json:"detected"`
 }
 
 // ProviderResults contains results from all providers
@@ -150,8 +150,8 @@ type RateLimiter struct {
 }
 
 type providerLimit struct {
-	tokens    int
 	lastReset time.Time
+	tokens    int
 	maxTokens int
 }
 
@@ -160,11 +160,11 @@ func NewRateLimiter() *RateLimiter {
 	return &RateLimiter{
 		limits: make(map[string]*providerLimit),
 		defaults: map[string]int{
-			"urlvoid":   10, // 10 requests per minute
-			"vt":        4,  // VirusTotal free tier: 4 requests per minute
-			"gsafe":     10,
-			"norton":    10,
-			"scanurl":   10,
+			"urlvoid": 10, // 10 requests per minute
+			"vt":      4,  // VirusTotal free tier: 4 requests per minute
+			"gsafe":   10,
+			"norton":  10,
+			"scanurl": 10,
 		},
 	}
 }
