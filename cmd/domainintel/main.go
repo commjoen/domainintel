@@ -3,7 +3,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -39,6 +42,8 @@ var (
 
 	// Version information (set during build)
 	version = "dev"
+	// GitHub repository for version checks
+	githubRepo = "commjoen/domainintel"
 )
 
 func main() {
@@ -94,12 +99,99 @@ func init() {
 	// Clarify available providers and required env keys
 	rootCmd.Flags().StringVar(&providersList, "providers", "", "Comma-separated third-party services: vt,urlvoid (requires VT_API_KEY and/or URLVOID_API_KEY)")
 
+	// Override the default version template to include update check
+	rootCmd.SetVersionTemplate(getVersionTemplate())
+
 	// MarkFlagRequired only returns an error if the flag doesn't exist.
 	// Since we just registered the flag above, this error should never occur in practice.
 	if err := rootCmd.MarkFlagRequired("domains"); err != nil {
 		fmt.Fprintf(os.Stderr, "Fatal: failed to mark 'domains' flag as required: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+// getVersionTemplate returns a custom version template with update checking
+func getVersionTemplate() string {
+	versionInfo := fmt.Sprintf("domainintel version %s\n", version)
+
+	// Check for updates (with timeout to avoid hanging)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	latestVersion, err := checkLatestVersion(ctx)
+	if err != nil {
+		if verbose {
+			versionInfo += fmt.Sprintf("(unable to check for updates: %v)\n", err)
+		}
+	} else if latestVersion != "" && latestVersion != version {
+		versionInfo += fmt.Sprintf("\n⚠️  A newer version is available: %s\n", latestVersion)
+		versionInfo += fmt.Sprintf("Download: https://github.com/%s/releases/latest\n", githubRepo)
+		versionInfo += fmt.Sprintf("Update:   go install github.com/%s/cmd/domainintel@latest\n", githubRepo)
+	} else if latestVersion == version {
+		versionInfo += "✓ You are running the latest version\n"
+	}
+
+	return versionInfo
+}
+
+// GitHubRelease represents a GitHub release API response
+type GitHubRelease struct {
+	TagName string `json:"tag_name"`
+	Name    string `json:"name"`
+	URL     string `json:"html_url"`
+}
+
+// checkLatestVersion queries GitHub API for the latest release
+func checkLatestVersion(ctx context.Context) (string, error) {
+	if version == "dev" || version == "" {
+		return "", fmt.Errorf("development build")
+	}
+
+	url := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", githubRepo)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set User-Agent to avoid rate limiting
+	req.Header.Set("User-Agent", fmt.Sprintf("domainintel/%s", version))
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+
+	client := &http.Client{
+		Timeout: 3 * time.Second,
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch latest release: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var release GitHubRelease
+	if err := json.Unmarshal(body, &release); err != nil {
+		return "", fmt.Errorf("failed to parse release info: %w", err)
+	}
+
+	// Normalize version tags (remove 'v' prefix if present)
+	latestVersion := strings.TrimPrefix(release.TagName, "v")
+	currentVersion := strings.TrimPrefix(version, "v")
+
+	// Simple string comparison (for more complex versioning, use semver library)
+	if latestVersion != currentVersion {
+		return latestVersion, nil
+	}
+
+	return currentVersion, nil
 }
 
 func run(cmd *cobra.Command, args []string) error {
