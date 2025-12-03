@@ -70,9 +70,11 @@ func init() {
 	rootCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging")
 	rootCmd.Flags().BoolVarP(&progress, "progress", "p", false, "Show progress bar during scan")
 
-	// MarkFlagRequired only returns an error if the flag doesn't exist (it does)
+	// MarkFlagRequired only returns an error if the flag doesn't exist.
+	// Since we just registered the flag above, this error should never occur in practice.
 	if err := rootCmd.MarkFlagRequired("domains"); err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "Fatal: failed to mark 'domains' flag as required: %v\n", err)
+		os.Exit(1)
 	}
 }
 

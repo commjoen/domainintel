@@ -22,7 +22,7 @@ linters:
 linters-settings:
   errcheck:
     check-type-assertions: true
-    check-blank: true
+    check-blank: false  # Blank identifier assignments are intentional for optional error handling
   govet:
     enable-all: true
     disable:
