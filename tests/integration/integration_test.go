@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -241,9 +242,9 @@ func TestLargeResultSet(t *testing.T) {
 // TestConcurrentProcessing tests concurrent request handling
 func TestConcurrentProcessing(t *testing.T) {
 	// Create mock server that tracks concurrent requests
-	var requestCount int
+	var requestCount int64
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestCount++
+		atomic.AddInt64(&requestCount, 1)
 		time.Sleep(10 * time.Millisecond) // Simulate network latency
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -265,8 +266,9 @@ func TestConcurrentProcessing(t *testing.T) {
 		<-done
 	}
 
-	if requestCount != 5 {
-		t.Errorf("Expected 5 requests, got %d", requestCount)
+	finalCount := atomic.LoadInt64(&requestCount)
+	if finalCount != 5 {
+		t.Errorf("Expected 5 requests, got %d", finalCount)
 	}
 }
 
