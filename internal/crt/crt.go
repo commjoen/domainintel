@@ -29,6 +29,9 @@ var domainRegex = regexp.MustCompile(`^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9
 // wildcardRegex matches wildcard entries like *.example.com
 var wildcardRegex = regexp.MustCompile(`^\*\.`)
 
+// inputWildcardRegex matches user input wildcard patterns like *.domain.com or *domain.com
+var inputWildcardRegex = regexp.MustCompile(`^\*\.?`)
+
 // Client provides methods to query Certificate Transparency logs
 type Client struct {
 	httpClient *http.Client
@@ -61,6 +64,14 @@ func ValidateDomain(domain string) error {
 		return fmt.Errorf("invalid domain format: %s", domain)
 	}
 	return nil
+}
+
+// NormalizeDomain strips wildcard prefixes (* or *.) from domain input
+// and returns the base domain for querying
+func NormalizeDomain(domain string) string {
+	domain = strings.TrimSpace(domain)
+	// Remove wildcard prefix patterns like "*." or "*"
+	return inputWildcardRegex.ReplaceAllString(domain, "")
 }
 
 // QuerySubdomains queries crt.sh for subdomains of the given domain

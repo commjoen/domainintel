@@ -44,6 +44,30 @@ func TestValidateDomain(t *testing.T) {
 	}
 }
 
+func TestNormalizeDomain(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		want   string
+	}{
+		{"plain domain", "example.com", "example.com"},
+		{"wildcard with dot", "*.example.com", "example.com"},
+		{"wildcard without dot", "*example.com", "example.com"},
+		{"subdomain", "sub.example.com", "sub.example.com"},
+		{"with spaces", "  *.example.com  ", "example.com"},
+		{"multiple levels", "*.sub.example.com", "sub.example.com"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := NormalizeDomain(tt.input)
+			if got != tt.want {
+				t.Errorf("NormalizeDomain(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestQuerySubdomains(t *testing.T) {
 	// Create mock server
 	entries := []models.CRTEntry{

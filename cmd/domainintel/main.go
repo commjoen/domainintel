@@ -161,6 +161,8 @@ func parseDomains(input string) []string {
 	for _, domain := range strings.Split(input, ",") {
 		domain = strings.TrimSpace(domain)
 		if domain != "" {
+			// Normalize wildcards (*.domain.com or *domain.com -> domain.com)
+			domain = crt.NormalizeDomain(domain)
 			result = append(result, strings.ToLower(domain))
 		}
 	}
