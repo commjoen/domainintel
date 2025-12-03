@@ -11,6 +11,13 @@ import (
 	"github.com/commjoen/domainintel/pkg/models"
 )
 
+const (
+	// maxSubdomainDisplayLength is the maximum length for subdomain display in text format
+	maxSubdomainDisplayLength = 28
+	// truncatedSubdomainLength is the length of truncated subdomain (with space for ellipsis)
+	truncatedSubdomainLength = 25
+)
+
 // Formatter defines the interface for output formatters
 type Formatter interface {
 	Format(result *models.ScanResult) (string, error)
@@ -94,8 +101,8 @@ func (f *TextFormatter) Write(w io.Writer, result *models.ScanResult) error {
 
 			// Truncate long subdomain names
 			subdomain := sub.Hostname
-			if len(subdomain) > 28 {
-				subdomain = subdomain[:25] + "..."
+			if len(subdomain) > maxSubdomainDisplayLength {
+				subdomain = subdomain[:truncatedSubdomainLength] + "..."
 			}
 
 			fmt.Fprintf(w, "%-30s %-18s %-8s %-5s %s\n", subdomain, ip, status, tlsStatus, responseTime)

@@ -26,6 +26,9 @@ type Checker struct {
 	timeout     time.Duration
 }
 
+// redirectChainKey is used to store redirect chain in request context
+type redirectChainKey struct{}
+
 // NewChecker creates a new reachability checker with the specified timeout
 func NewChecker(timeout time.Duration) *Checker {
 	if timeout == 0 {
@@ -41,11 +44,9 @@ func NewChecker(timeout time.Duration) *Checker {
 			}
 			return nil
 		},
-		// Skip TLS verification for testing reachability (we capture errors separately)
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: false,
-				MinVersion:         tls.VersionTLS12,
+				MinVersion: tls.VersionTLS12,
 			},
 			DialContext: (&net.Dialer{
 				Timeout:   timeout,
@@ -113,18 +114,33 @@ func (c *Checker) ResolveIPs(ctx context.Context, hostname string) ([]string, er
 }
 
 // CheckHTTP performs an HTTP/HTTPS request and returns the result
-func (c *Checker) CheckHTTP(ctx context.Context, url string) *models.HTTPResult {
+func (c *Checker) CheckHTTP(ctx context.Context, urlStr string) *models.HTTPResult {
 	result := &models.HTTPResult{}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, urlStr, nil)
 	if err != nil {
 		result.Error = fmt.Sprintf("failed to create request: %v", err)
 		return result
 	}
 	req.Header.Set("User-Agent", "domainintel/1.0")
 
+	// Create a custom client with redirect tracking for this request
+	var redirectChain []string
+	client := &http.Client{
+		Timeout: c.timeout,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= maxRedirects {
+				return fmt.Errorf("stopped after %d redirects", maxRedirects)
+			}
+			// Capture intermediate redirect URLs
+			redirectChain = append(redirectChain, req.URL.String())
+			return nil
+		},
+		Transport: c.httpClient.Transport,
+	}
+
 	start := time.Now()
-	resp, err := c.httpClient.Do(req)
+	resp, err := client.Do(req)
 	result.ResponseTimeMs = time.Since(start).Milliseconds()
 
 	if err != nil {
@@ -137,9 +153,9 @@ func (c *Checker) CheckHTTP(ctx context.Context, url string) *models.HTTPResult 
 	result.StatusText = resp.Status
 	result.FinalURL = resp.Request.URL.String()
 
-	// Track redirect chain
-	if resp.Request.URL.String() != url {
-		result.RedirectChain = []string{resp.Request.URL.String()}
+	// Include redirect chain if there were redirects
+	if len(redirectChain) > 0 {
+		result.RedirectChain = redirectChain
 	}
 
 	return result
