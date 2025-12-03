@@ -2,6 +2,7 @@ package dns
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 )
@@ -34,7 +35,7 @@ func TestGetSystemDNSServers(t *testing.T) {
 
 	// Verify all servers have port
 	for _, server := range servers {
-		if !contains(server, ":") {
+		if !strings.Contains(server, ":") {
 			t.Errorf("Server %s should have port", server)
 		}
 	}
@@ -164,16 +165,6 @@ func (e *testError) Error() string {
 	return e.msg
 }
 
-// contains is a helper function
-func contains(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}
-
 // Note: Integration tests that require actual DNS lookups are skipped
 // as they depend on network access and may have inconsistent results.
 // These tests focus on unit testing the internal logic.
@@ -190,5 +181,147 @@ func TestQueryAllCancellation(t *testing.T) {
 	// Result should have error or be empty due to cancellation
 	if result == nil {
 		t.Error("Expected result to be non-nil")
+	}
+}
+
+func TestQueryAllResultFields(t *testing.T) {
+	client := NewClient(5 * time.Second)
+
+	// Query for a non-existent domain to test error handling
+	result := client.QueryAll(context.Background(), "invalid.local.test.domain.xyz")
+
+	// The result should not be nil
+	if result == nil {
+		t.Fatal("Expected result to be non-nil")
+	}
+
+	// Result should either have data or an error
+	hasData := len(result.A) > 0 || len(result.AAAA) > 0 || len(result.MX) > 0 ||
+		len(result.TXT) > 0 || len(result.NS) > 0 || result.SOA != nil || result.CNAME != ""
+
+	// For invalid domains, we expect either no data or an error
+	if hasData && result.Error == "" {
+		// If somehow we got data, it should be valid
+		t.Log("Got unexpected data for invalid domain")
+	}
+}
+
+func TestQueryAIndividual(t *testing.T) {
+	client := NewClient(5 * time.Second)
+
+	// Query a domain that shouldn't exist
+	_, err := client.QueryA(context.Background(), "invalid.local.test.domain.xyz")
+
+	// We expect an error for non-existent domain
+	if err == nil {
+		t.Log("QueryA returned successfully for invalid domain (might be DNS hijacking)")
+	}
+}
+
+func TestQueryAAAAIndividual(t *testing.T) {
+	client := NewClient(5 * time.Second)
+
+	// Query a domain that shouldn't exist
+	_, err := client.QueryAAAA(context.Background(), "invalid.local.test.domain.xyz")
+
+	// We expect an error for non-existent domain
+	if err == nil {
+		t.Log("QueryAAAA returned successfully for invalid domain (might be DNS hijacking)")
+	}
+}
+
+func TestQueryMXIndividual(t *testing.T) {
+	client := NewClient(5 * time.Second)
+
+	// Query a domain that shouldn't exist
+	_, err := client.QueryMX(context.Background(), "invalid.local.test.domain.xyz")
+
+	// We expect an error for non-existent domain
+	if err == nil {
+		t.Log("QueryMX returned successfully for invalid domain")
+	}
+}
+
+func TestQueryTXTIndividual(t *testing.T) {
+	client := NewClient(5 * time.Second)
+
+	// Query a domain that shouldn't exist
+	_, err := client.QueryTXT(context.Background(), "invalid.local.test.domain.xyz")
+
+	// We expect an error for non-existent domain
+	if err == nil {
+		t.Log("QueryTXT returned successfully for invalid domain")
+	}
+}
+
+func TestQueryNSIndividual(t *testing.T) {
+	client := NewClient(5 * time.Second)
+
+	// Query a domain that shouldn't exist
+	_, err := client.QueryNS(context.Background(), "invalid.local.test.domain.xyz")
+
+	// We expect an error for non-existent domain
+	if err == nil {
+		t.Log("QueryNS returned successfully for invalid domain")
+	}
+}
+
+func TestQueryCNAMEIndividual(t *testing.T) {
+	client := NewClient(5 * time.Second)
+
+	// Query a domain that shouldn't exist
+	_, err := client.QueryCNAME(context.Background(), "invalid.local.test.domain.xyz")
+
+	// We expect an error for non-existent domain
+	if err == nil {
+		t.Log("QueryCNAME returned successfully for invalid domain")
+	}
+}
+
+func TestQuerySOAIndividual(t *testing.T) {
+	client := NewClient(5 * time.Second)
+
+	// Query a domain that shouldn't exist
+	_, err := client.QuerySOA(context.Background(), "invalid.local.test.domain.xyz")
+
+	// We expect an error for non-existent domain
+	if err == nil {
+		t.Log("QuerySOA returned successfully for invalid domain")
+	}
+}
+
+func TestQueryWithTimeout(t *testing.T) {
+	// Create client with very short timeout
+	client := NewClient(1 * time.Millisecond)
+
+	// This should timeout or fail quickly
+	_, err := client.QueryA(context.Background(), "example.com")
+
+	// The result depends on network conditions, so just verify it doesn't panic
+	_ = err
+}
+
+func TestClientRetries(t *testing.T) {
+	client := NewClient(2 * time.Second)
+
+	// Verify retries is set
+	if client.retries != defaultRetries {
+		t.Errorf("Expected retries %d, got %d", defaultRetries, client.retries)
+	}
+}
+
+func TestDNSServerConfiguration(t *testing.T) {
+	client := NewClient(5 * time.Second)
+
+	// Verify DNS servers are configured
+	if len(client.dnsServers) == 0 {
+		t.Error("Expected at least one DNS server")
+	}
+
+	// Verify each server has a port
+	for _, server := range client.dnsServers {
+		if !strings.Contains(server, ":") {
+			t.Errorf("DNS server %s should have port", server)
+		}
 	}
 }

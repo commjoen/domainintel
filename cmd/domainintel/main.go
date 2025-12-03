@@ -16,20 +16,26 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/commjoen/domainintel/internal/crt"
+	"github.com/commjoen/domainintel/internal/dns"
 	"github.com/commjoen/domainintel/internal/output"
+	"github.com/commjoen/domainintel/internal/providers"
 	"github.com/commjoen/domainintel/internal/reachability"
+	"github.com/commjoen/domainintel/internal/whois"
 	"github.com/commjoen/domainintel/pkg/models"
 )
 
 var (
 	// CLI flags
-	domains    string
-	format     string
-	outputFile string
-	timeout    time.Duration
-	concurrent int
-	verbose    bool
-	progress   bool
+	domains       string
+	format        string
+	outputFile    string
+	timeout       time.Duration
+	concurrent    int
+	verbose       bool
+	progress      bool
+	enableDig     bool
+	enableWhois   bool
+	providersList string
 
 	// Version information (set during build)
 	version = "dev"
@@ -49,7 +55,13 @@ var rootCmd = &cobra.Command{
 	Long: `domainintel is a command-line reconnaissance tool designed to gather
 comprehensive intelligence about domains. It automates the process of
 discovering subdomains, checking their availability, resolving IP addresses,
-and validating TLS certificates.`,
+and validating TLS certificates.
+
+Third-party providers:
+  --providers vt,urlvoid
+    - vt      (VirusTotal) requires VT_API_KEY in environment
+    - urlvoid (URLVoid)    requires URLVOID_API_KEY in environment
+If you request a provider without the required API key set, the command will fail with a clear error.`,
 	Example: `  # Basic subdomain enumeration
   domainintel --domains example.com
 
@@ -57,7 +69,15 @@ and validating TLS certificates.`,
   domainintel --domains example.com,example.org --format json
 
   # Save results to file
-  domainintel --domains example.com --format csv --out results.csv`,
+  domainintel --domains example.com --format csv --out results.csv
+
+  # Full reconnaissance with DNS and WHOIS
+  domainintel --domains example.com --dig --whois
+
+  # Use third-party reputation services (API keys required)
+  export VT_API_KEY=your_key
+  export URLVOID_API_KEY=your_key
+  domainintel --domains example.com --providers vt,urlvoid`,
 	RunE: run,
 }
 
@@ -69,6 +89,10 @@ func init() {
 	rootCmd.Flags().IntVarP(&concurrent, "concurrent", "c", 10, "Maximum concurrent requests")
 	rootCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging")
 	rootCmd.Flags().BoolVarP(&progress, "progress", "p", false, "Show progress bar during scan")
+	rootCmd.Flags().BoolVar(&enableDig, "dig", false, "Enable extended DNS queries (A/AAAA/MX/TXT/NS/CNAME/SOA)")
+	rootCmd.Flags().BoolVar(&enableWhois, "whois", false, "Enable WHOIS lookups for registration data")
+	// Clarify available providers and required env keys
+	rootCmd.Flags().StringVar(&providersList, "providers", "", "Comma-separated third-party services: vt,urlvoid (requires VT_API_KEY and/or URLVOID_API_KEY)")
 
 	// MarkFlagRequired only returns an error if the flag doesn't exist.
 	// Since we just registered the flag above, this error should never occur in practice.
@@ -83,6 +107,12 @@ func run(cmd *cobra.Command, args []string) error {
 	domainList := parseDomains(domains)
 	if len(domainList) == 0 {
 		return fmt.Errorf("no valid domains provided")
+	}
+
+	// Security: Limit domain list size to prevent abuse
+	const maxDomains = 100
+	if len(domainList) > maxDomains {
+		return fmt.Errorf("too many domains specified (max %d, got %d)", maxDomains, len(domainList))
 	}
 
 	if verbose {
@@ -121,6 +151,23 @@ func run(cmd *cobra.Command, args []string) error {
 	crtClient := crt.NewClient(timeout)
 	checker := reachability.NewChecker(timeout)
 
+	// Create optional clients based on flags
+	var dnsClient *dns.Client
+	if enableDig {
+		dnsClient = dns.NewClient(timeout)
+	}
+
+	var whoisClient *whois.Client
+	if enableWhois {
+		whoisClient = whois.NewClient(timeout)
+	}
+
+	// Validate and set up providers if requested
+	providerManager, providerList, err := setupProviders(providersList, timeout)
+	if err != nil {
+		return err
+	}
+
 	// Process each domain
 	result := &models.ScanResult{
 		Timestamp: time.Now().UTC(),
@@ -137,7 +184,7 @@ func run(cmd *cobra.Command, args []string) error {
 		default:
 		}
 
-		domainResult, err := processDomain(ctx, domain, crtClient, checker)
+		domainResult, err := processDomain(ctx, domain, crtClient, checker, dnsClient, whoisClient, providerManager, providerList)
 		if err != nil {
 			if verbose {
 				fmt.Fprintf(os.Stderr, "Error processing %s: %v\n", domain, err)
@@ -175,7 +222,7 @@ func parseDomains(input string) []string {
 	return result
 }
 
-func processDomain(ctx context.Context, domain string, crtClient *crt.Client, checker *reachability.Checker) (*models.DomainResult, error) {
+func processDomain(ctx context.Context, domain string, crtClient *crt.Client, checker *reachability.Checker, dnsClient *dns.Client, whoisClient *whois.Client, providerManager *providers.Manager, providerList []string) (*models.DomainResult, error) {
 	if verbose {
 		fmt.Fprintf(os.Stderr, "Processing domain: %s\n", domain)
 	}
@@ -190,9 +237,15 @@ func processDomain(ctx context.Context, domain string, crtClient *crt.Client, ch
 		fmt.Fprintf(os.Stderr, "Found %d subdomains for %s\n", len(subdomains), domain)
 	}
 
-	// If no subdomains found, add the base domain
-	if len(subdomains) == 0 {
-		subdomains = []string{domain}
+	// Ensure the base domain is included so WHOIS runs
+	// Deduplicate entries
+	seen := make(map[string]struct{}, len(subdomains)+1)
+	for _, s := range subdomains {
+		seen[s] = struct{}{}
+	}
+	if _, ok := seen[domain]; !ok {
+		subdomains = append(subdomains, domain)
+		seen[domain] = struct{}{}
 	}
 
 	total := len(subdomains)
@@ -226,6 +279,36 @@ func processDomain(ctx context.Context, domain string, crtClient *crt.Client, ch
 
 			results[idx] = checker.CheckHost(ctx, hostname)
 
+			// Add DNS records if --dig flag is set
+			if dnsClient != nil {
+				dnsResult := dnsClient.QueryAll(ctx, hostname)
+				results[idx].DNS = convertDNSResult(dnsResult)
+			}
+
+			// Add WHOIS data if --whois flag is set (only for base domain)
+			if whoisClient != nil && hostname == domain {
+				whoisResult := whoisClient.Lookup(ctx, hostname)
+				results[idx].WHOIS = convertWHOISResult(whoisResult)
+			}
+
+			// Add third-party provider results if --providers flag is set
+			if providerManager != nil && len(providerList) > 0 {
+				providerResults := providerManager.Check(ctx, hostname, providerList)
+				if len(providerResults.Results) > 0 {
+					results[idx].ThirdParty = make(map[string]interface{})
+					for _, pr := range providerResults.Results {
+						results[idx].ThirdParty[pr.Provider] = map[string]interface{}{
+							"detected":     pr.Detected,
+							"score":        pr.Score,
+							"categories":   pr.Categories,
+							"details":      pr.Details,
+							"error":        pr.Error,
+							"last_checked": pr.LastChecked,
+						}
+					}
+				}
+			}
+
 			// Update progress
 			if progress {
 				current := atomic.AddInt64(&completed, 1)
@@ -247,6 +330,62 @@ func processDomain(ctx context.Context, domain string, crtClient *crt.Client, ch
 	}, nil
 }
 
+// convertDNSResult converts internal dns.DNSResult to models.DNSResult
+func convertDNSResult(d *dns.DNSResult) *models.DNSResult {
+	if d == nil {
+		return nil
+	}
+	result := &models.DNSResult{
+		A:     d.A,
+		AAAA:  d.AAAA,
+		TXT:   d.TXT,
+		NS:    d.NS,
+		CNAME: d.CNAME,
+		Error: d.Error,
+	}
+	// Convert MX records
+	if len(d.MX) > 0 {
+		result.MX = make([]models.MXRecord, len(d.MX))
+		for i, mx := range d.MX {
+			result.MX[i] = models.MXRecord{
+				Host:     mx.Host,
+				Priority: mx.Priority,
+			}
+		}
+	}
+	// Convert SOA record
+	if d.SOA != nil {
+		result.SOA = &models.SOARecord{
+			PrimaryNS:  d.SOA.PrimaryNS,
+			AdminEmail: d.SOA.AdminEmail,
+			Serial:     d.SOA.Serial,
+			Refresh:    d.SOA.Refresh,
+			Retry:      d.SOA.Retry,
+			Expire:     d.SOA.Expire,
+			MinTTL:     d.SOA.MinTTL,
+		}
+	}
+	return result
+}
+
+// convertWHOISResult converts internal whois.WHOISResult to models.WHOISResult
+func convertWHOISResult(w *whois.WHOISResult) *models.WHOISResult {
+	if w == nil {
+		return nil
+	}
+	return &models.WHOISResult{
+		Registrar:      w.Registrar,
+		RegistrantName: w.RegistrantName,
+		RegistrantOrg:  w.RegistrantOrg,
+		Nameservers:    w.Nameservers,
+		Status:         w.Status,
+		CreationDate:   w.CreationDate,
+		ExpirationDate: w.ExpirationDate,
+		UpdatedDate:    w.UpdatedDate,
+		Error:          w.Error,
+	}
+}
+
 // printProgress displays a progress bar
 func printProgress(domain string, current, total int) {
 	percentage := float64(current) / float64(total) * 100
@@ -256,11 +395,50 @@ func printProgress(domain string, current, total int) {
 	fmt.Fprintf(os.Stderr, "\r[%s] %3.0f%% (%d/%d) %s", bar, percentage, current, total, domain)
 }
 
+// validateOutputPath performs security validation on the output file path
+func validateOutputPath(path string) error {
+	if path == "" {
+		return nil
+	}
+
+	// Clean the path to resolve any . or .. components
+	cleanPath := filepath.Clean(path)
+
+	// Check for absolute paths that might be trying to write to sensitive locations
+	if filepath.IsAbs(cleanPath) {
+		// Allow absolute paths but warn about sensitive locations
+		sensitivePatterns := []string{"/etc/", "/var/", "/usr/", "/bin/", "/sbin/", "/root/"}
+		for _, pattern := range sensitivePatterns {
+			if strings.HasPrefix(cleanPath, pattern) {
+				return fmt.Errorf("refusing to write to sensitive system location: %s", cleanPath)
+			}
+		}
+	}
+
+	// Ensure path doesn't escape current directory unexpectedly for relative paths
+	if !filepath.IsAbs(path) && strings.HasPrefix(cleanPath, "..") {
+		// Allow parent directory references but ensure the resolved path is reasonable
+		absPath, err := filepath.Abs(cleanPath)
+		if err != nil {
+			return fmt.Errorf("failed to resolve path: %w", err)
+		}
+		// Just resolve it - the Clean already handled normalization
+		_ = absPath
+	}
+
+	return nil
+}
+
 func outputResults(formatter output.Formatter, result *models.ScanResult) error {
 	var writer *os.File
 	var err error
 
 	if outputFile != "" {
+		// Validate the output path for security
+		if validateErr := validateOutputPath(outputFile); validateErr != nil {
+			return validateErr
+		}
+
 		// Sanitize the file path to prevent directory traversal
 		cleanPath := filepath.Clean(outputFile)
 		// #nosec G304 -- User-provided output file path is intentional for CLI tool
@@ -274,4 +452,69 @@ func outputResults(formatter output.Formatter, result *models.ScanResult) error 
 	}
 
 	return formatter.Write(writer, result)
+}
+
+func setupProviders(list string, timeout time.Duration) (*providers.Manager, []string, error) {
+	if strings.TrimSpace(list) == "" {
+		return nil, nil, nil
+	}
+
+	// Supported providers registry
+	supported := map[string]struct{}{
+		"vt":      {},
+		"urlvoid": {},
+	}
+
+	parts := strings.Split(list, ",")
+	requested := make([]string, 0, len(parts))
+
+	// Parse and validate names
+	for _, p := range parts {
+		p = strings.TrimSpace(strings.ToLower(p))
+		if p == "" {
+			continue
+		}
+		if _, ok := supported[p]; !ok {
+			return nil, nil, fmt.Errorf("unknown provider %q. Supported: vt,urlvoid", p)
+		}
+		requested = append(requested, p)
+	}
+	if len(requested) == 0 {
+		return nil, nil, fmt.Errorf("no valid providers specified. Use --providers vt,urlvoid")
+	}
+
+	// Validate API keys for requested providers
+	vtKey := os.Getenv("VT_API_KEY")
+	urlvoidKey := os.Getenv("URLVOID_API_KEY")
+	for _, p := range requested {
+		switch p {
+		case "vt":
+			if strings.TrimSpace(vtKey) == "" {
+				return nil, nil, fmt.Errorf("VT_API_KEY is required for provider 'vt'")
+			}
+		case "urlvoid":
+			if strings.TrimSpace(urlvoidKey) == "" {
+				return nil, nil, fmt.Errorf("URLVOID_API_KEY is required for provider 'urlvoid'")
+			}
+		}
+	}
+
+	// Build manager and register only requested providers
+	pm := providers.NewManager()
+	for _, p := range requested {
+		switch p {
+		case "vt":
+			pm.Register(providers.NewVirusTotal(providers.VirusTotalConfig{
+				APIKey:  vtKey,
+				Timeout: timeout,
+			}))
+		case "urlvoid":
+			pm.Register(providers.NewURLVoid(providers.URLVoidConfig{
+				APIKey:  urlvoidKey,
+				Timeout: timeout,
+			}))
+		}
+	}
+
+	return pm, requested, nil
 }

@@ -1,0 +1,107 @@
+{
+  "crt_sh": {
+    "example_response": [
+      {
+        "issuer_ca_id": 16418,
+        "issuer_name": "C=US, O=DigiCert Inc, CN=DigiCert TLS RSA SHA256 2020 CA1",
+        "common_name": "www.example.com",
+        "name_value": "www.example.com\nexample.com",
+        "id": 9999999999,
+        "entry_timestamp": "2024-01-15T10:30:00.000",
+        "not_before": "2024-01-01T00:00:00",
+        "not_after": "2025-01-01T00:00:00",
+        "serial_number": "0A1B2C3D4E5F"
+      },
+      {
+        "issuer_ca_id": 16418,
+        "issuer_name": "C=US, O=DigiCert Inc, CN=DigiCert TLS RSA SHA256 2020 CA1",
+        "common_name": "mail.example.com",
+        "name_value": "mail.example.com",
+        "id": 9999999998,
+        "entry_timestamp": "2024-01-14T09:00:00.000",
+        "not_before": "2024-01-01T00:00:00",
+        "not_after": "2025-01-01T00:00:00",
+        "serial_number": "0A1B2C3D4E5E"
+      },
+      {
+        "issuer_ca_id": 16418,
+        "issuer_name": "C=US, O=Let's Encrypt, CN=R3",
+        "common_name": "api.example.com",
+        "name_value": "api.example.com\n*.api.example.com",
+        "id": 9999999997,
+        "entry_timestamp": "2024-01-13T08:00:00.000",
+        "not_before": "2024-01-01T00:00:00",
+        "not_after": "2024-04-01T00:00:00",
+        "serial_number": "0A1B2C3D4E5D"
+      }
+    ],
+    "empty_response": [],
+    "wildcard_response": [
+      {
+        "issuer_ca_id": 16418,
+        "issuer_name": "C=US, O=DigiCert Inc, CN=DigiCert TLS RSA SHA256 2020 CA1",
+        "common_name": "*.example.com",
+        "name_value": "*.example.com",
+        "id": 9999999996,
+        "entry_timestamp": "2024-01-12T07:00:00.000",
+        "not_before": "2024-01-01T00:00:00",
+        "not_after": "2025-01-01T00:00:00",
+        "serial_number": "0A1B2C3D4E5C"
+      }
+    ]
+  },
+  "virustotal": {
+    "clean_domain": {
+      "data": {
+        "attributes": {
+          "last_analysis_stats": {
+            "malicious": 0,
+            "suspicious": 0,
+            "harmless": 70,
+            "undetected": 5
+          },
+          "categories": {
+            "Forcepoint ThreatSeeker": "information technology"
+          },
+          "registrar": "Example Registrar Inc",
+          "creation_date": 1167609600,
+          "reputation": 0
+        }
+      }
+    },
+    "malicious_domain": {
+      "data": {
+        "attributes": {
+          "last_analysis_stats": {
+            "malicious": 5,
+            "suspicious": 2,
+            "harmless": 60,
+            "undetected": 8
+          },
+          "categories": {
+            "Forcepoint ThreatSeeker": "malware"
+          },
+          "registrar": "Sketchy Registrar",
+          "creation_date": 1500000000,
+          "reputation": -10
+        }
+      }
+    }
+  },
+  "urlvoid": {
+    "clean_response": "<?xml version=\"1.0\"?><response><details><host>example.com</host><updated>2024-01-15</updated><ip>93.184.216.34</ip><country_code>US</country_code></details><blacklists><detections>0</detections><engines_count>35</engines_count></blacklists></response>",
+    "detected_response": "<?xml version=\"1.0\"?><response><details><host>malicious.com</host><updated>2024-01-15</updated><ip>1.2.3.4</ip><country_code>RU</country_code></details><blacklists><detections>3</detections><engines_count>35</engines_count><engines><engine>PhishTank</engine><engine>Google Safe Browsing</engine><engine>Malware Domain List</engine></engines></blacklists></response>"
+  },
+  "whois": {
+    "example_com": {
+      "registrar": "MarkMonitor Inc.",
+      "registrant_name": "REDACTED FOR PRIVACY",
+      "registrant_org": "Internet Assigned Numbers Authority",
+      "nameservers": ["a.iana-servers.net", "b.iana-servers.net"],
+      "status": ["clientDeleteProhibited", "clientTransferProhibited", "clientUpdateProhibited"],
+      "creation_date": "1995-08-14T04:00:00Z",
+      "expiration_date": "2025-08-13T04:00:00Z",
+      "updated_date": "2024-01-15T10:00:00Z"
+    }
+  }
+}
