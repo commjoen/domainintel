@@ -43,58 +43,58 @@ Download pre-built binaries from the [Releases](https://github.com/commjoen/doma
 
 ```bash
 # Basic subdomain enumeration
-domainintel -domains example.com
+domainintel --domains example.com
 
 # Multiple domains
-domainintel -domains example.com,example.org
+domainintel --domains example.com,example.org
 ```
 
 ### Output Formats
 
 ```bash
 # Text output (default)
-domainintel -domains example.com -format text
+domainintel --domains example.com --format text
 
 # JSON output (great for jq processing)
-domainintel -domains example.com -format json
+domainintel --domains example.com --format json
 
 # CSV output
-domainintel -domains example.com -format csv
+domainintel --domains example.com --format csv
 
 # Save to file
-domainintel -domains example.com -format csv -out results.csv
+domainintel --domains example.com --format csv --out results.csv
 ```
 
 ### Advanced Options
 
 ```bash
 # Increase timeout for slow networks
-domainintel -domains example.com -timeout 30s
+domainintel --domains example.com --timeout 30s
 
 # Increase concurrency for faster scans
-domainintel -domains example.com -concurrent 20
+domainintel --domains example.com --concurrent 20
 
 # Verbose output for debugging
-domainintel -domains example.com -verbose
+domainintel --domains example.com --verbose
 ```
 
 ### jq Examples
 
 ```bash
 # Extract all discovered subdomains
-domainintel -domains example.com -format json | jq -r '.domains[].subdomains[].hostname'
+domainintel --domains example.com --format json | jq -r '.domains[].subdomains[].hostname'
 
 # Get subdomain and status pairs
-domainintel -domains example.com -format json | jq '.domains[].subdomains[] | {hostname, status: .https.status}'
+domainintel --domains example.com --format json | jq '.domains[].subdomains[] | {hostname, status: .https.status}'
 
 # List all unique IP addresses
-domainintel -domains example.com -format json | jq -r '.domains[].subdomains[].ips[]' | sort -u
+domainintel --domains example.com --format json | jq -r '.domains[].subdomains[].ips[]' | sort -u
 
 # Find subdomains with TLS issues
-domainintel -domains example.com -format json | jq '.domains[].subdomains[] | select(.tls.valid == false)'
+domainintel --domains example.com --format json | jq '.domains[].subdomains[] | select(.tls.valid == false)'
 
 # Export reachable subdomains only
-domainintel -domains example.com -format json | jq -r '.domains[].subdomains[] | select(.reachable == true) | .hostname'
+domainintel --domains example.com --format json | jq -r '.domains[].subdomains[] | select(.reachable == true) | .hostname'
 ```
 
 ## CLI Flags

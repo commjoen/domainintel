@@ -48,13 +48,13 @@ comprehensive intelligence about domains. It automates the process of
 discovering subdomains, checking their availability, resolving IP addresses,
 and validating TLS certificates.`,
 	Example: `  # Basic subdomain enumeration
-  domainintel -domains example.com
+  domainintel --domains example.com
 
   # Multiple domains with JSON output
-  domainintel -domains example.com,example.org -format json
+  domainintel --domains example.com,example.org --format json
 
   # Save results to file
-  domainintel -domains example.com -format csv -out results.csv`,
+  domainintel --domains example.com --format csv --out results.csv`,
 	RunE: run,
 }
 
