@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2025-12-03
+
+### Added
+- **Enhanced Plaintext Output for DNS/WHOIS/Provider Information**
+  - DNS records (A, AAAA, MX, TXT, NS, CNAME, SOA) now displayed in text output when `--dig` flag is used
+  - WHOIS registration data now displayed in text output when `--whois` flag is used
+  - Third-party provider results (VirusTotal, URLVoid) now displayed in text output when `--providers` flag is used
+  - Human-readable formatting with clear section headers and indentation
+  - Consistent output formatting across all information types
+
+### Changed
+- Extracted output formatting constants for better maintainability
+- Consolidated helper functions for improved code organization
+
 ## [0.1.2] - 2025-12-03
 
 ### Added
@@ -176,6 +190,8 @@ domainintel --domains example.com \
 - [ ] Export to additional formats (HTML, Markdown)
 - [ ] Semantic version comparison for update checks
 
-[Unreleased]: https://github.com/commjoen/domainintel/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/commjoen/domainintel/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/commjoen/domainintel/releases/tag/v0.1.3
+[0.1.2]: https://github.com/commjoen/domainintel/releases/tag/v0.1.2
 [0.1.1]: https://github.com/commjoen/domainintel/releases/tag/v0.1.1
 [0.1.0]: https://github.com/commjoen/domainintel/releases/tag/v0.1.0
