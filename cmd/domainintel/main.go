@@ -106,12 +106,13 @@ If you request a provider without the required API key set, the command will fai
   export VT_API_KEY=your_key
   export URLVOID_API_KEY=your_key
   export SAFEBROWSING_API_KEY=your_key
-  domainintel --domains example.com --providers vt,urlvoid,safebrowsing`,
+  domainintel --domains example.com --providers vt,urlvoid,safebrowsing
 
   # Check security headers (no API key required)
-  domainintel --domains example.com --providers securityheaders`,
+  domainintel --domains example.com --providers securityheaders
+
   # Use DNSBL and Spamhaus checks (no API keys required)
-  domainintel --domains example.com --providers dnsbl,spamhaus
+  domainintel --domains example.com --providers dnsbl,spamhaus`,
 	RunE: run,
 }
 
@@ -132,7 +133,6 @@ func init() {
 	rootCmd.Flags().BoolVar(&enableDig, "dig", false, "Enable extended DNS queries (A/AAAA/MX/TXT/NS/CNAME/SOA)")
 	rootCmd.Flags().BoolVar(&enableWhois, "whois", false, "Enable WHOIS lookups for registration data")
 	// Clarify available providers and required env keys
-  
 	rootCmd.Flags().StringVar(&providersList, "providers", "", "Comma-separated third-party services: dnsbl,securityheaders,safebrowsing,spamhaus,urlvoid,vt (vt/urlvoid require API keys)")
 
 	// Override the default version template to include update check
@@ -598,12 +598,12 @@ func setupProviders(list string, timeout time.Duration) (*providers.Manager, []s
 
 	// Supported providers registry
 	supported := map[string]struct{}{
-		"vt":               {},
-		"urlvoid":          {},
-		"dnsbl":            {},
-		"spamhaus":         {},
-		"safebrowsing":     {},
- 		"securityheaders":  {},
+		"vt":              {},
+		"urlvoid":         {},
+		"dnsbl":           {},
+		"spamhaus":        {},
+		"safebrowsing":    {},
+		"securityheaders": {},
 	}
 
 	parts := strings.Split(list, ",")
@@ -663,7 +663,7 @@ func setupProviders(list string, timeout time.Duration) (*providers.Manager, []s
 			}))
 		case "securityheaders":
 			pm.Register(providers.NewSecurityHeaders(providers.SecurityHeadersConfig{
-        Timeout: timeout,
+				Timeout: timeout,
 			}))
 		case "dnsbl":
 			pm.Register(providers.NewDNSBL(providers.DNSBLConfig{
