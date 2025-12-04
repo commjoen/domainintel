@@ -49,10 +49,16 @@ var (
 
 // initVersion initializes version from build info if not set via LDFLAGS
 func initVersion() {
-	// If version was not set via LDFLAGS (still "dev"), try to get it from build info
-	// This handles the case when the binary is installed via "go install @latest" or "@v1.2.3"
+	// If version was not set via LDFLAGS (still "dev"), try to get it from build info.
+	// This handles the case when the binary is installed via "go install @latest" or "@v1.2.3".
 	if version == "dev" {
-		if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		info, ok := debug.ReadBuildInfo()
+		if !ok {
+			return
+		}
+		// Skip empty version or "(devel)" which indicates a local development build
+		// (e.g., when built with "go build" without module versioning)
+		if info.Main.Version != "" && info.Main.Version != "(devel)" {
 			version = info.Main.Version
 		}
 	}
