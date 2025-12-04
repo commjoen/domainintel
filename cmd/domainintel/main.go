@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -40,11 +41,28 @@ var (
 	enableWhois   bool
 	providersList string
 
-	// Version information (set during build)
+	// Version information (set during build via LDFLAGS, or detected from build info)
 	version = "dev"
 	// GitHub repository for version checks
 	githubRepo = "commjoen/domainintel"
 )
+
+// initVersion initializes version from build info if not set via LDFLAGS
+func initVersion() {
+	// If version was not set via LDFLAGS (still "dev"), try to get it from build info.
+	// This handles the case when the binary is installed via "go install @latest" or "@v1.2.3".
+	if version == "dev" {
+		info, ok := debug.ReadBuildInfo()
+		if !ok {
+			return
+		}
+		// Skip empty version or "(devel)" which indicates a local development build
+		// (e.g., when built with "go build" without module versioning)
+		if info.Main.Version != "" && info.Main.Version != "(devel)" {
+			version = info.Main.Version
+		}
+	}
+}
 
 func main() {
 	if err := rootCmd.Execute(); err != nil {
@@ -63,10 +81,14 @@ discovering subdomains, checking their availability, resolving IP addresses,
 and validating TLS certificates.
 
 Third-party providers:
-  --providers vt,urlvoid,securityheaders
-    - vt              (VirusTotal)        requires VT_API_KEY in environment
-    - urlvoid         (URLVoid)           requires URLVOID_API_KEY in environment
+  --providers dnsbl,safebrowsing,securityheaders,spamhaus,urlvoid,vt
+    - dnsbl        (DNSBL listings)      no API key required (uses DNS queries)
+    - safebrowsing (Safe Browsing)       requires SAFEBROWSING_API_KEY in environment
     - securityheaders (SecurityHeaders)   no API key required (uses hide=on for privacy)
+    - spamhaus     (Spamhaus checks)     no API key required (uses DNS queries)
+    - urlvoid      (URLVoid)             requires URLVOID_API_KEY in environment
+    - vt           (VirusTotal)          requires VT_API_KEY in environment
+    
 If you request a provider without the required API key set, the command will fail with a clear error.`,
 	Example: `  # Basic subdomain enumeration
   domainintel --domains example.com
@@ -83,14 +105,23 @@ If you request a provider without the required API key set, the command will fai
   # Use third-party reputation services (API keys required for vt and urlvoid)
   export VT_API_KEY=your_key
   export URLVOID_API_KEY=your_key
-  domainintel --domains example.com --providers vt,urlvoid
+  export SAFEBROWSING_API_KEY=your_key
+  domainintel --domains example.com --providers vt,urlvoid,safebrowsing`,
 
   # Check security headers (no API key required)
   domainintel --domains example.com --providers securityheaders`,
+  # Use DNSBL and Spamhaus checks (no API keys required)
+  domainintel --domains example.com --providers dnsbl,spamhaus
 	RunE: run,
 }
 
 func init() {
+	// Initialize version from build info if not set via LDFLAGS
+	initVersion()
+
+	// Update rootCmd.Version since it was set at package init time before initVersion() ran
+	rootCmd.Version = version
+
 	rootCmd.Flags().StringVarP(&domains, "domains", "d", "", "Comma-separated list of target domains (required)")
 	rootCmd.Flags().StringVarP(&format, "format", "f", "text", "Output format: text, json, or csv")
 	rootCmd.Flags().StringVarP(&outputFile, "out", "o", "", "Write output to file (default: stdout)")
@@ -101,7 +132,8 @@ func init() {
 	rootCmd.Flags().BoolVar(&enableDig, "dig", false, "Enable extended DNS queries (A/AAAA/MX/TXT/NS/CNAME/SOA)")
 	rootCmd.Flags().BoolVar(&enableWhois, "whois", false, "Enable WHOIS lookups for registration data")
 	// Clarify available providers and required env keys
-	rootCmd.Flags().StringVar(&providersList, "providers", "", "Comma-separated third-party services: vt,urlvoid,securityheaders (vt/urlvoid require API keys)")
+  
+	rootCmd.Flags().StringVar(&providersList, "providers", "", "Comma-separated third-party services: dnsbl,securityheaders,safebrowsing,spamhaus,urlvoid,vt (vt/urlvoid require API keys)")
 
 	// Override the default version template to include update check
 	rootCmd.SetVersionTemplate(getVersionTemplate())
@@ -566,9 +598,12 @@ func setupProviders(list string, timeout time.Duration) (*providers.Manager, []s
 
 	// Supported providers registry
 	supported := map[string]struct{}{
-		"vt":              {},
-		"urlvoid":         {},
-		"securityheaders": {},
+		"vt":               {},
+		"urlvoid":          {},
+		"dnsbl":            {},
+		"spamhaus":         {},
+		"safebrowsing":     {},
+ 		"securityheaders":  {},
 	}
 
 	parts := strings.Split(list, ",")
@@ -581,17 +616,18 @@ func setupProviders(list string, timeout time.Duration) (*providers.Manager, []s
 			continue
 		}
 		if _, ok := supported[p]; !ok {
-			return nil, nil, fmt.Errorf("unknown provider %q. Supported: vt,urlvoid,securityheaders", p)
+			return nil, nil, fmt.Errorf("unknown provider %q. Supported: vt,urlvoid,dnsbl,spamhaus,safebrowsing", p)
 		}
 		requested = append(requested, p)
 	}
 	if len(requested) == 0 {
-		return nil, nil, fmt.Errorf("no valid providers specified. Use --providers vt,urlvoid,securityheaders")
+		return nil, nil, fmt.Errorf("no valid providers specified. Use --providers vt,urlvoid,dnsbl,spamhaus,safebrowsing,securityheaders")
 	}
 
 	// Validate API keys for requested providers
 	vtKey := os.Getenv("VT_API_KEY")
 	urlvoidKey := os.Getenv("URLVOID_API_KEY")
+	safeBrowsingKey := os.Getenv("SAFEBROWSING_API_KEY")
 	for _, p := range requested {
 		switch p {
 		case "vt":
@@ -603,6 +639,11 @@ func setupProviders(list string, timeout time.Duration) (*providers.Manager, []s
 				return nil, nil, fmt.Errorf("URLVOID_API_KEY is required for provider 'urlvoid'")
 			}
 			// securityheaders does not require an API key
+		case "safebrowsing":
+			if strings.TrimSpace(safeBrowsingKey) == "" {
+				return nil, nil, fmt.Errorf("SAFEBROWSING_API_KEY is required for provider 'safebrowsing'")
+			}
+			// dnsbl and spamhaus don't require API keys
 		}
 	}
 
@@ -622,6 +663,19 @@ func setupProviders(list string, timeout time.Duration) (*providers.Manager, []s
 			}))
 		case "securityheaders":
 			pm.Register(providers.NewSecurityHeaders(providers.SecurityHeadersConfig{
+        Timeout: timeout,
+			}))
+		case "dnsbl":
+			pm.Register(providers.NewDNSBL(providers.DNSBLConfig{
+				Timeout: timeout,
+			}))
+		case "spamhaus":
+			pm.Register(providers.NewSpamhaus(providers.SpamhausConfig{
+				Timeout: timeout,
+			}))
+		case "safebrowsing":
+			pm.Register(providers.NewSafeBrowsing(providers.SafeBrowsingConfig{
+				APIKey:  safeBrowsingKey,
 				Timeout: timeout,
 			}))
 		}
