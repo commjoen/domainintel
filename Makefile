@@ -18,7 +18,7 @@ GOMOD=$(GOCMD) mod
 CMD_DIR=./cmd/domainintel
 DIST_DIR=./dist
 
-.PHONY: all build clean test test-coverage lint lint-install security deps tidy help
+.PHONY: all build clean test test-coverage lint lint-install security deps tidy update help
 
 # Default target
 all: deps lint test build
@@ -90,9 +90,46 @@ tidy:
 	@echo "Tidying dependencies..."
 	$(GOMOD) tidy
 
+# Update Go version and dependencies
+update:
+	@echo "Updating Go version and dependencies..."
+	@echo "Checking latest Go version..."
+	@LATEST_GO=$$(curl -s https://go.dev/VERSION?m=text | head -n1 | sed 's/go//'); \
+	if [ -z "$$LATEST_GO" ]; then \
+	echo "Error: Failed to fetch latest Go version"; \
+	exit 1; \
+	fi; \
+	echo "Latest Go version: $$LATEST_GO"; \
+	echo "Current go.mod version: $$(grep '^go ' go.mod | awk '{print $$2}')"; \
+	echo "Updating go.mod to Go $$LATEST_GO..."; \
+	go mod edit -go=$$LATEST_GO; \
+	echo "Updating GitHub Actions workflows..."; \
+	find .github/workflows -name '*.yml' -o -name '*.yaml' | while read -r file; do \
+	if grep -q 'go-version:' "$$file"; then \
+	sed -i.bak "s/go-version: *['\"]?[0-9.]*['\"]*/go-version: '$$LATEST_GO'/" "$$file" && rm -f "$$file.bak"; \
+	echo "  Updated $$file"; \
+	fi; \
+	done; \
+	echo "Updating dependencies..."; \
+	$(GOMOD) tidy; \
+	$(GOGET) -u ./...; \
+	$(GOMOD) tidy; \
+	echo "Update complete!"; \
+	echo "Summary:"; \
+	echo "  Go version: $$LATEST_GO"; \
+	echo "  Updated files:"; \
+	echo "    - go.mod"; \
+	echo "    - go.sum"; \
+	git diff --name-only 2>/dev/null | grep -E '(go.mod|go.sum|\.github/)' | sed 's/^/    - /' || echo "    (no files changed)"; \
+	echo ""; \
+	echo "Next steps:"; \
+	echo "  1. Review changes: git diff"; \
+	echo "  2. Test the build: make test"; \
+	echo "  3. Commit changes: git add go.mod go.sum .github/ && git commit -m 'chore: update Go to $$LATEST_GO and dependencies'"
+
 # Run the application
 run: build
-	./$(BINARY_NAME) -domains example.com
+	./$(BINARY_NAME) --domains example.com
 
 # Show help
 help:
@@ -107,5 +144,6 @@ help:
 	@echo "  security      - Run security scan (installs gosec if needed)"
 	@echo "  deps          - Download dependencies"
 	@echo "  tidy          - Tidy go.mod and go.sum"
+	@echo "  update        - Update Go version and dependencies to latest"
 	@echo "  run           - Build and run with example domain"
 	@echo "  help          - Show this help message"

@@ -107,7 +107,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Version output now includes update check and status indicator
 
 ### Technical Details
-- Built with Go 1.21+
+- Built with Go 1.25.4+
 - Uses Cobra for CLI framework
 - Implements context-based cancellation
 - Concurrent processing with worker pools and semaphores
