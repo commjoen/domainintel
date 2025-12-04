@@ -323,7 +323,7 @@ func (f *CSVFormatter) Write(w io.Writer, result *models.ScanResult) error {
 	defer writer.Flush()
 
 	// Write header
-	header := []string{"domain", "subdomain", "ip", "status", "tls_valid", "response_time_ms"}
+	header := []string{"domain", "subdomain", "ip", "status", "tls_valid", "response_time_ms", "error"}
 	if err := writer.Write(header); err != nil {
 		return err
 	}
@@ -355,7 +355,14 @@ func (f *CSVFormatter) Write(w io.Writer, result *models.ScanResult) error {
 				}
 			}
 
-			row := []string{domain.Name, sub.Hostname, ip, status, tlsValid, responseTime}
+			// Include subdomain error or fall back to domain-level error (e.g., crt.sh failure).
+			// Subdomain-specific errors take precedence as they are more relevant to the individual host.
+			errorMsg := sub.Error
+			if errorMsg == "" {
+				errorMsg = domain.Error
+			}
+
+			row := []string{domain.Name, sub.Hostname, ip, status, tlsValid, responseTime, errorMsg}
 			if err := writer.Write(row); err != nil {
 				return err
 			}

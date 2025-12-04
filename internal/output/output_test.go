@@ -195,7 +195,7 @@ func TestCSVFormatter(t *testing.T) {
 	}
 
 	// Check header
-	if !strings.HasPrefix(output, "domain,subdomain,ip,status,tls_valid,response_time_ms") {
+	if !strings.HasPrefix(output, "domain,subdomain,ip,status,tls_valid,response_time_ms,error") {
 		t.Error("CSV output should start with header")
 	}
 
@@ -234,6 +234,37 @@ func TestCSVFormatterEmptyResult(t *testing.T) {
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 	if len(lines) != 1 {
 		t.Errorf("Expected 1 line (header only), got %d", len(lines))
+	}
+}
+
+func TestCSVFormatterWithDomainError(t *testing.T) {
+	result := &models.ScanResult{
+		Timestamp: time.Now(),
+		Domains: []models.DomainResult{
+			{
+				Name: "example.com",
+				Subdomains: []models.SubdomainResult{
+					{
+						Hostname:  "example.com",
+						IPs:       []string{},
+						Reachable: false,
+						Error:     "DNS resolution failed",
+					},
+				},
+				Error: "crt.sh HTTP 500: Internal Server Error",
+			},
+		},
+	}
+	formatter := &CSVFormatter{}
+
+	output, err := formatter.Format(result)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	// Check that error is included in CSV
+	if !strings.Contains(output, "DNS resolution failed") {
+		t.Errorf("CSV output should contain subdomain error, got: %s", output)
 	}
 }
 

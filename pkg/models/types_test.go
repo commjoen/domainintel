@@ -360,6 +360,36 @@ func TestDomainResultJSON(t *testing.T) {
 	}
 }
 
+func TestDomainResultWithErrorJSON(t *testing.T) {
+	result := DomainResult{
+		Name: "example.com",
+		Subdomains: []SubdomainResult{
+			{Hostname: "example.com", Reachable: false, Error: "DNS resolution failed"},
+		},
+		Error: "crt.sh query failed: HTTP 500: Internal Server Error",
+	}
+
+	jsonData, err := json.Marshal(result)
+	if err != nil {
+		t.Fatalf("Failed to marshal DomainResult with Error: %v", err)
+	}
+
+	var parsed DomainResult
+	if err := json.Unmarshal(jsonData, &parsed); err != nil {
+		t.Fatalf("Failed to unmarshal DomainResult with Error: %v", err)
+	}
+
+	if parsed.Name != "example.com" {
+		t.Errorf("Expected Name 'example.com', got %s", parsed.Name)
+	}
+	if parsed.Error == "" {
+		t.Error("Expected Error to be non-empty")
+	}
+	if !strings.Contains(parsed.Error, "HTTP 500") {
+		t.Errorf("Expected Error to contain 'HTTP 500', got %s", parsed.Error)
+	}
+}
+
 func TestScanSummaryJSON(t *testing.T) {
 	summary := ScanSummary{
 		TotalDomains:    5,

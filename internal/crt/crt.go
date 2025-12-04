@@ -121,13 +121,13 @@ func (c *Client) queryCRTsh(ctx context.Context, domain string) ([]models.CRTEnt
 
 		if resp.StatusCode == http.StatusTooManyRequests {
 			_ = resp.Body.Close()
-			lastErr = fmt.Errorf("rate limited by crt.sh")
+			lastErr = fmt.Errorf("crt.sh HTTP %d: rate limited", resp.StatusCode)
 			continue
 		}
 
 		if resp.StatusCode != http.StatusOK {
 			_ = resp.Body.Close()
-			lastErr = fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+			lastErr = fmt.Errorf("crt.sh HTTP %d: %s", resp.StatusCode, http.StatusText(resp.StatusCode))
 			continue
 		}
 
