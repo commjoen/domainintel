@@ -149,6 +149,7 @@ func (s *SSLLabs) Check(ctx context.Context, domain string) *Result {
 	var grades []string
 	var worstGrade string
 	worstRank := 0
+	foundKnownGrade := false
 	var hasIssues bool
 
 	for _, ep := range sslResponse.Endpoints {
@@ -162,6 +163,7 @@ func (s *SSLLabs) Check(ctx context.Context, domain string) *Result {
 					worstRank = rank
 					worstGrade = ep.Grade
 				}
+				foundKnownGrade = true
 				// Consider anything not A+ or A as having issues
 				if rank > gradeRank["A"] {
 					hasIssues = true
@@ -170,7 +172,7 @@ func (s *SSLLabs) Check(ctx context.Context, domain string) *Result {
 				// Unknown grades are treated as potential issues
 				hasIssues = true
 				// Only use unknown grade as fallback if no known grades found
-				if worstRank == 0 && worstGrade == "" {
+				if !foundKnownGrade && worstGrade == "" {
 					worstGrade = ep.Grade
 				}
 			}
