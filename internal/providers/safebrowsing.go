@@ -139,7 +139,7 @@ func (s *SafeBrowsing) Check(ctx context.Context, domain string) *Result {
 	// Check if matches were found
 	if len(sbResponse.Matches) == 0 {
 		result.Detected = false
-		result.Score = "0/0"
+		result.Score = "0/1"
 		return result
 	}
 

@@ -4,6 +4,7 @@ package providers
 import (
 	"context"
 	"net"
+	"strings"
 	"time"
 )
 
@@ -95,13 +96,18 @@ func (s *Spamhaus) Check(ctx context.Context, domain string) *Result {
 	result.Score = "1/1"
 
 	// Parse return codes
+	var returnCodes []string
 	for _, addr := range addrs {
 		if description, ok := spamhausReturnCodes[addr]; ok {
 			result.Categories = append(result.Categories, description)
 		} else {
 			result.Categories = append(result.Categories, "Listed (code: "+addr+")")
 		}
-		result.Details["dbl_return_code"] = addr
+		returnCodes = append(returnCodes, addr)
+	}
+	// Store all return codes, not just the last one
+	if len(returnCodes) > 0 {
+		result.Details["dbl_return_codes"] = strings.Join(returnCodes, ",")
 	}
 
 	return result

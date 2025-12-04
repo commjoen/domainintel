@@ -3,6 +3,7 @@ package providers
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"strings"
 	"time"
@@ -106,27 +107,7 @@ func (d *DNSBL) Check(ctx context.Context, domain string) *Result {
 	}
 
 	result.Detected = listed > 0
-	result.Score = formatScore(listed, checked)
+	result.Score = fmt.Sprintf("%d/%d", listed, checked)
 
-	return result
-}
-
-func formatScore(detected, total int) string {
-	return strings.Join([]string{itoa(detected), "/", itoa(total)}, "")
-}
-
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	if n < 0 {
-		return "-" + itoa(-n)
-	}
-	result := ""
-	for n > 0 {
-		digit := n % 10
-		result = string(rune('0'+digit)) + result
-		n /= 10
-	}
 	return result
 }
