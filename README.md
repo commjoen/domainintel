@@ -1,5 +1,19 @@
 # domainintel
 
+[![CI](https://github.com/commjoen/domainintel/workflows/CI/badge.svg)](https://github.com/commjoen/domainintel/actions/workflows/ci.yml)
+[![Release](https://github.com/commjoen/domainintel/workflows/Release/badge.svg)](https://github.com/commjoen/domainintel/actions/workflows/release.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub release](https://img.shields.io/github/v/release/commjoen/domainintel)](https://github.com/commjoen/domainintel/releases)
+[![GitHub downloads](https://img.shields.io/github/downloads/commjoen/domainintel/total)](https://github.com/commjoen/domainintel/releases)
+[![GitHub stars](https://img.shields.io/github/stars/commjoen/domainintel)](https://github.com/commjoen/domainintel/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/commjoen/domainintel)](https://github.com/commjoen/domainintel/network/members)
+[![GitHub watchers](https://img.shields.io/github/watchers/commjoen/domainintel)](https://github.com/commjoen/domainintel/watchers)
+
+[![Share on Twitter](https://img.shields.io/badge/Twitter-Share-1DA1F2?logo=twitter&logoColor=white)](https://twitter.com/intent/tweet?text=Check%20out%20domainintel%20-%20A%20domain%20reconnaissance%20tool&url=https://github.com/commjoen/domainintel)
+[![Share on LinkedIn](https://img.shields.io/badge/LinkedIn-Share-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/sharing/share-offsite/?url=https://github.com/commjoen/domainintel)
+[![Share on Facebook](https://img.shields.io/badge/Facebook-Share-1877F2?logo=facebook&logoColor=white)](https://www.facebook.com/sharer/sharer.php?u=https://github.com/commjoen/domainintel)
+[![Share on Bluesky](https://img.shields.io/badge/Bluesky-Share-0085FF?logo=bluesky&logoColor=white)](https://bsky.app/intent/compose?text=Check%20out%20domainintel%20-%20A%20domain%20reconnaissance%20tool%20https://github.com/commjoen/domainintel)
+
 A command-line reconnaissance tool for gathering comprehensive intelligence about domains.
 
 ## Overview
