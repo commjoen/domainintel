@@ -452,8 +452,8 @@ func TestSecurityHeadersCheckHTMLFallback(t *testing.T) {
 	if result.Score != "B" {
 		t.Errorf("Expected score 'B' from HTML fallback, got %s", result.Score)
 	}
-	if !result.Detected {
-		t.Error("Expected Detected to be true for grade B")
+	if result.Detected {
+		t.Error("Expected Detected to be false for grade B (only D, E, F indicate security issues)")
 	}
 }
 
@@ -519,7 +519,13 @@ func TestParseSecurityHeadersHTML(t *testing.T) {
 			name:           "grade-b style",
 			html:           `<span class="grade-b">B</span>`,
 			expectedGrade:  "B",
-			expectedDetect: true,
+			expectedDetect: false, // B is not a poor grade (D, E, F)
+		},
+		{
+			name:           "grade-d style",
+			html:           `<span class="grade-d">D</span>`,
+			expectedGrade:  "D",
+			expectedDetect: true, // D is a poor grade
 		},
 		{
 			name:           "no grade found",

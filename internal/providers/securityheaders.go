@@ -99,7 +99,8 @@ func (s *SecurityHeaders) Check(ctx context.Context, domain string) *Result {
 
 	// Extract grade and header information from JSON response
 	result.Score = shResponse.Grade
-	result.Detected = shResponse.Grade != "" && shResponse.Grade != "A+" && shResponse.Grade != "A"
+	// Detected indicates security issues - only poor grades (D, E, F) indicate significant issues
+	result.Detected = shResponse.Grade == "D" || shResponse.Grade == "E" || shResponse.Grade == "F"
 
 	// Add header presence details
 	for header, present := range shResponse.Headers {
@@ -123,7 +124,6 @@ func (s *SecurityHeaders) Check(ctx context.Context, domain string) *Result {
 // securityHeadersResponse represents the SecurityHeaders.com API response structure
 type securityHeadersResponse struct {
 	Grade   string          `json:"grade"`
-	Score   int             `json:"score"`
 	Headers map[string]bool `json:"headers"`
 	URL     string          `json:"url"`
 }
@@ -156,7 +156,8 @@ func parseSecurityHeadersHTML(html string, result *Result) *Result {
 	for _, pattern := range gradePatterns {
 		if strings.Contains(htmlLower, strings.ToLower(pattern.marker)) {
 			result.Score = pattern.grade
-			result.Detected = pattern.grade != "A+" && pattern.grade != "A"
+			// Detected indicates security issues - only poor grades (D, E, F) indicate significant issues
+			result.Detected = pattern.grade == "D" || pattern.grade == "E" || pattern.grade == "F"
 			break
 		}
 	}

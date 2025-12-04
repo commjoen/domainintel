@@ -602,7 +602,7 @@ func setupProviders(list string, timeout time.Duration) (*providers.Manager, []s
 			if strings.TrimSpace(urlvoidKey) == "" {
 				return nil, nil, fmt.Errorf("URLVOID_API_KEY is required for provider 'urlvoid'")
 			}
-		// securityheaders does not require an API key
+			// securityheaders does not require an API key
 		}
 	}
 
