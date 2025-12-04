@@ -634,3 +634,47 @@ func TestSSLLabsCheckUnknownGrade(t *testing.T) {
 		t.Error("Expected Detected to be true for unknown grade")
 	}
 }
+
+func TestSSLLabsCheckMixedKnownUnknownGrades(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		// Test with mixed known and unknown grades
+		response := `{
+			"host": "example.com",
+			"status": "READY",
+			"endpoints": [
+				{
+					"ipAddress": "93.184.216.34",
+					"statusMessage": "Ready",
+					"grade": "X"
+				},
+				{
+					"ipAddress": "93.184.216.35",
+					"statusMessage": "Ready",
+					"grade": "B"
+				}
+			]
+		}`
+		_, _ = w.Write([]byte(response))
+	}))
+	defer server.Close()
+
+	ssl := &SSLLabs{
+		baseURL: server.URL,
+		client:  &http.Client{Timeout: 5 * time.Second},
+	}
+
+	result := ssl.Check(context.Background(), "example.com")
+
+	if result.Error != "" {
+		t.Errorf("Unexpected error: %s", result.Error)
+	}
+	// Known grade (B) should take precedence over unknown grade (X)
+	if result.Score != "B" {
+		t.Errorf("Expected score 'B' (known grade takes precedence), got %s", result.Score)
+	}
+	// Should be detected due to unknown grade and B grade
+	if !result.Detected {
+		t.Error("Expected Detected to be true")
+	}
+}

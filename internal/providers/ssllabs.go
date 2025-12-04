@@ -166,11 +166,13 @@ func (s *SSLLabs) Check(ctx context.Context, domain string) *Result {
 				if rank > gradeRank["A"] {
 					hasIssues = true
 				}
-			} else if worstGrade == "" {
-				// Handle unknown grades by using the first one
+			} else {
 				// Unknown grades are treated as potential issues
-				worstGrade = ep.Grade
 				hasIssues = true
+				// Only use unknown grade as fallback if no known grades found
+				if worstRank == 0 && worstGrade == "" {
+					worstGrade = ep.Grade
+				}
 			}
 		}
 		if ep.HasWarnings || ep.StatusMessage != "Ready" {
