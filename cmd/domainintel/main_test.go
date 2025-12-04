@@ -118,6 +118,38 @@ func TestRootCmdVersion(t *testing.T) {
 	}
 }
 
+func TestInitVersionPreservesLDFLAGS(t *testing.T) {
+	// Save original version
+	originalVersion := version
+	defer func() { version = originalVersion }()
+
+	// When version is set via LDFLAGS (not "dev"), initVersion should not change it
+	version = "v1.2.3"
+	initVersion()
+
+	if version != "v1.2.3" {
+		t.Errorf("initVersion should preserve LDFLAGS version, got %q, want %q", version, "v1.2.3")
+	}
+}
+
+func TestInitVersionFromBuildInfo(t *testing.T) {
+	// Save original version
+	originalVersion := version
+	defer func() { version = originalVersion }()
+
+	// When version is "dev", initVersion should try to get version from build info
+	version = "dev"
+	initVersion()
+
+	// After initVersion, version should either remain "dev" (if build info not available)
+	// or be set to the build info version
+	// We can't guarantee which it will be in tests, but we can verify it doesn't panic
+	// and the version is non-empty
+	if version == "" {
+		t.Error("initVersion should not set version to empty string")
+	}
+}
+
 func TestPrintProgress(t *testing.T) {
 	// Capture stderr
 	oldStderr := os.Stderr

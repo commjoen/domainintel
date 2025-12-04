@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -40,11 +41,22 @@ var (
 	enableWhois   bool
 	providersList string
 
-	// Version information (set during build)
+	// Version information (set during build via LDFLAGS, or detected from build info)
 	version = "dev"
 	// GitHub repository for version checks
 	githubRepo = "commjoen/domainintel"
 )
+
+// initVersion initializes version from build info if not set via LDFLAGS
+func initVersion() {
+	// If version was not set via LDFLAGS (still "dev"), try to get it from build info
+	// This handles the case when the binary is installed via "go install @latest" or "@v1.2.3"
+	if version == "dev" {
+		if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+			version = info.Main.Version
+		}
+	}
+}
 
 func main() {
 	if err := rootCmd.Execute(); err != nil {
@@ -87,6 +99,12 @@ If you request a provider without the required API key set, the command will fai
 }
 
 func init() {
+	// Initialize version from build info if not set via LDFLAGS
+	initVersion()
+
+	// Update rootCmd.Version since it was set at package init time before initVersion() ran
+	rootCmd.Version = version
+
 	rootCmd.Flags().StringVarP(&domains, "domains", "d", "", "Comma-separated list of target domains (required)")
 	rootCmd.Flags().StringVarP(&format, "format", "f", "text", "Output format: text, json, or csv")
 	rootCmd.Flags().StringVarP(&outputFile, "out", "o", "", "Write output to file (default: stdout)")
