@@ -79,7 +79,7 @@ func (v *VirusTotal) Check(ctx context.Context, domain string) *Result {
 		result.Error = fmt.Sprintf("request failed: %v", err)
 		return result
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusNotFound {
 		result.Error = "domain not found in VirusTotal database"

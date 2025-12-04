@@ -78,7 +78,7 @@ func (u *URLVoid) Check(ctx context.Context, domain string) *Result {
 		result.Error = fmt.Sprintf("request failed: %v", err)
 		return result
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		result.Error = fmt.Sprintf("API error: %s", resp.Status)

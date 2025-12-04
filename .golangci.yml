@@ -1,3 +1,5 @@
+version: "2"
+
 run:
   timeout: 5m
   modules-download-mode: readonly
@@ -5,51 +7,53 @@ run:
 linters:
   enable:
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck
     - unused
-    - gofmt
-    - goimports
     - misspell
     - unconvert
     - bodyclose
     - noctx
     - gosec
     - prealloc
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: false
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+    misspell:
+      locale: US
+    gosec:
+      excludes:
+        - G104
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
+      - path: test/
+        linters:
+          - errcheck
+          - gosec
+      - linters:
+          - govet
+        text: "unusedwrite:"
 
-linters-settings:
-  errcheck:
-    check-type-assertions: true
-    check-blank: false  # Blank identifier assignments are intentional for optional error handling
-  govet:
-    enable-all: true
-    disable:
-      - fieldalignment  # Field alignment is an optimization, not a correctness issue
-  gofmt:
-    simplify: true
-  goimports:
-    local-prefixes: github.com/commjoen/domainintel
-  misspell:
-    locale: US
-  gosec:
-    excludes:
-      - G104 # Audit errors not checked - we handle this with errcheck
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      simplify: true
+    goimports:
+      local-prefixes:
+        - github.com/commjoen/domainintel
 
-issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - errcheck
-        - gosec
-    - path: test/
-      linters:
-        - errcheck
-        - gosec
-    # Exclude unusedwrite in test files as they are testing struct initialization
-    - linters:
-        - govet
-      text: "unusedwrite:"
-  max-issues-per-linter: 0
-  max-same-issues: 0
+output:
+  show-stats: true

@@ -144,7 +144,7 @@ func (c *Checker) CheckHTTP(ctx context.Context, urlStr string) *models.HTTPResu
 		result.Error = categorizeError(err)
 		return result
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	result.Status = resp.StatusCode
 	result.StatusText = resp.Status
@@ -162,17 +162,28 @@ func (c *Checker) CheckHTTP(ctx context.Context, urlStr string) *models.HTTPResu
 func (c *Checker) CheckTLS(ctx context.Context, hostname string) *models.TLSResult {
 	result := &models.TLSResult{}
 
-	conn, err := tls.DialWithDialer(&net.Dialer{Timeout: c.timeout}, "tcp", hostname+":443", &tls.Config{
-		MinVersion: tls.VersionTLS12,
-	})
+	dialer := &tls.Dialer{
+		NetDialer: &net.Dialer{Timeout: c.timeout},
+		Config: &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		},
+	}
+	conn, err := dialer.DialContext(ctx, "tcp", hostname+":443")
 	if err != nil {
 		result.Valid = false
 		result.Error = categorizeError(err)
 		return result
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
-	state := conn.ConnectionState()
+	tlsConn, ok := conn.(*tls.Conn)
+	if !ok {
+		result.Valid = false
+		result.Error = "failed to get TLS connection"
+		return result
+	}
+
+	state := tlsConn.ConnectionState()
 	if len(state.PeerCertificates) > 0 {
 		cert := state.PeerCertificates[0]
 		result.Valid = true

@@ -68,10 +68,10 @@ func (f *TextFormatter) Write(w io.Writer, result *models.ScanResult) error {
 	lineSeparator := strings.Repeat("-", 80)
 
 	for _, domain := range result.Domains {
-		fmt.Fprintf(w, "Domain: %s\n", domain.Name)
-		fmt.Fprintln(w, separator)
-		fmt.Fprintf(w, "%-30s %-18s %-8s %-5s %s\n", "Subdomain", "IP Address", "Status", "TLS", "Response Time")
-		fmt.Fprintln(w, lineSeparator)
+		_, _ = fmt.Fprintf(w, "Domain: %s\n", domain.Name)
+		_, _ = fmt.Fprintln(w, separator)
+		_, _ = fmt.Fprintf(w, "%-30s %-18s %-8s %-5s %s\n", "Subdomain", "IP Address", "Status", "TLS", "Response Time")
+		_, _ = fmt.Fprintln(w, lineSeparator)
 
 		for _, sub := range domain.Subdomains {
 			ip := "-"
@@ -109,7 +109,7 @@ func (f *TextFormatter) Write(w io.Writer, result *models.ScanResult) error {
 				subdomain = subdomain[:truncatedSubdomainLength] + "..."
 			}
 
-			fmt.Fprintf(w, "%-30s %-18s %-8s %-5s %s\n", subdomain, ip, status, tlsStatus, responseTime)
+			_, _ = fmt.Fprintf(w, "%-30s %-18s %-8s %-5s %s\n", subdomain, ip, status, tlsStatus, responseTime)
 
 			// Display DNS records if present (--dig flag was used)
 			if sub.DNS != nil {
@@ -127,11 +127,11 @@ func (f *TextFormatter) Write(w io.Writer, result *models.ScanResult) error {
 			}
 		}
 
-		fmt.Fprintln(w, separator)
+		_, _ = fmt.Fprintln(w, separator)
 	}
 
 	if result.Summary != nil {
-		fmt.Fprintf(w, "Found %d subdomains | %d reachable | %d unreachable\n",
+		_, _ = fmt.Fprintf(w, "Found %d subdomains | %d reachable | %d unreachable\n",
 			result.Summary.TotalSubdomains,
 			result.Summary.Reachable,
 			result.Summary.Unreachable)
@@ -142,22 +142,22 @@ func (f *TextFormatter) Write(w io.Writer, result *models.ScanResult) error {
 
 // formatDNSRecords formats DNS records for plaintext output
 func formatDNSRecords(w io.Writer, dns *models.DNSResult) {
-	fmt.Fprintf(w, "  DNS Records:\n")
+	_, _ = fmt.Fprintf(w, "  DNS Records:\n")
 	if len(dns.A) > 0 {
-		fmt.Fprintf(w, "    A:     %s\n", strings.Join(dns.A, ", "))
+		_, _ = fmt.Fprintf(w, "    A:     %s\n", strings.Join(dns.A, ", "))
 	}
 	if len(dns.AAAA) > 0 {
-		fmt.Fprintf(w, "    AAAA:  %s\n", strings.Join(dns.AAAA, ", "))
+		_, _ = fmt.Fprintf(w, "    AAAA:  %s\n", strings.Join(dns.AAAA, ", "))
 	}
 	if len(dns.MX) > 0 {
 		mxRecords := make([]string, len(dns.MX))
 		for i, mx := range dns.MX {
 			mxRecords[i] = fmt.Sprintf("%s (pri: %d)", mx.Host, mx.Priority)
 		}
-		fmt.Fprintf(w, "    MX:    %s\n", strings.Join(mxRecords, ", "))
+		_, _ = fmt.Fprintf(w, "    MX:    %s\n", strings.Join(mxRecords, ", "))
 	}
 	if len(dns.NS) > 0 {
-		fmt.Fprintf(w, "    NS:    %s\n", strings.Join(dns.NS, ", "))
+		_, _ = fmt.Fprintf(w, "    NS:    %s\n", strings.Join(dns.NS, ", "))
 	}
 	if len(dns.TXT) > 0 {
 		for i, txt := range dns.TXT {
@@ -167,82 +167,82 @@ func formatDNSRecords(w io.Writer, dns *models.DNSResult) {
 				displayTxt = displayTxt[:truncatedTXTLength] + "..."
 			}
 			if i == 0 {
-				fmt.Fprintf(w, "    TXT:   %s\n", displayTxt)
+				_, _ = fmt.Fprintf(w, "    TXT:   %s\n", displayTxt)
 			} else {
-				fmt.Fprintf(w, "           %s\n", displayTxt)
+				_, _ = fmt.Fprintf(w, "           %s\n", displayTxt)
 			}
 		}
 	}
 	if dns.CNAME != "" {
-		fmt.Fprintf(w, "    CNAME: %s\n", dns.CNAME)
+		_, _ = fmt.Fprintf(w, "    CNAME: %s\n", dns.CNAME)
 	}
 	if dns.SOA != nil {
-		fmt.Fprintf(w, "    SOA:   %s (admin: %s, serial: %d)\n",
+		_, _ = fmt.Fprintf(w, "    SOA:   %s (admin: %s, serial: %d)\n",
 			dns.SOA.PrimaryNS, dns.SOA.AdminEmail, dns.SOA.Serial)
 	}
 	if dns.Error != "" {
-		fmt.Fprintf(w, "    Error: %s\n", dns.Error)
+		_, _ = fmt.Fprintf(w, "    Error: %s\n", dns.Error)
 	}
 }
 
 // formatWHOISInfo formats WHOIS information for plaintext output
 func formatWHOISInfo(w io.Writer, whois *models.WHOISResult) {
-	fmt.Fprintf(w, "  WHOIS Information:\n")
+	_, _ = fmt.Fprintf(w, "  WHOIS Information:\n")
 	if whois.Registrar != "" {
-		fmt.Fprintf(w, "    Registrar:   %s\n", whois.Registrar)
+		_, _ = fmt.Fprintf(w, "    Registrar:   %s\n", whois.Registrar)
 	}
 	if whois.RegistrantOrg != "" {
-		fmt.Fprintf(w, "    Organization: %s\n", whois.RegistrantOrg)
+		_, _ = fmt.Fprintf(w, "    Organization: %s\n", whois.RegistrantOrg)
 	}
 	if whois.RegistrantName != "" {
-		fmt.Fprintf(w, "    Registrant:  %s\n", whois.RegistrantName)
+		_, _ = fmt.Fprintf(w, "    Registrant:  %s\n", whois.RegistrantName)
 	}
 	if whois.CreationDate != nil {
-		fmt.Fprintf(w, "    Created:     %s\n", whois.CreationDate.Format("2006-01-02"))
+		_, _ = fmt.Fprintf(w, "    Created:     %s\n", whois.CreationDate.Format("2006-01-02"))
 	}
 	if whois.ExpirationDate != nil {
-		fmt.Fprintf(w, "    Expires:     %s\n", whois.ExpirationDate.Format("2006-01-02"))
+		_, _ = fmt.Fprintf(w, "    Expires:     %s\n", whois.ExpirationDate.Format("2006-01-02"))
 	}
 	if whois.UpdatedDate != nil {
-		fmt.Fprintf(w, "    Updated:     %s\n", whois.UpdatedDate.Format("2006-01-02"))
+		_, _ = fmt.Fprintf(w, "    Updated:     %s\n", whois.UpdatedDate.Format("2006-01-02"))
 	}
 	if len(whois.Nameservers) > 0 {
-		fmt.Fprintf(w, "    Nameservers: %s\n", strings.Join(whois.Nameservers, ", "))
+		_, _ = fmt.Fprintf(w, "    Nameservers: %s\n", strings.Join(whois.Nameservers, ", "))
 	}
 	if len(whois.Status) > 0 {
-		fmt.Fprintf(w, "    Status:      %s\n", strings.Join(whois.Status, ", "))
+		_, _ = fmt.Fprintf(w, "    Status:      %s\n", strings.Join(whois.Status, ", "))
 	}
 	if whois.Error != "" {
-		fmt.Fprintf(w, "    Error:       %s\n", whois.Error)
+		_, _ = fmt.Fprintf(w, "    Error:       %s\n", whois.Error)
 	}
 }
 
 // formatThirdPartyResults formats third-party provider results for plaintext output
 func formatThirdPartyResults(w io.Writer, thirdParty map[string]interface{}) {
-	fmt.Fprintf(w, "  Third-Party Providers:\n")
+	_, _ = fmt.Fprintf(w, "  Third-Party Providers:\n")
 	for provider, data := range thirdParty {
-		fmt.Fprintf(w, "    %s:\n", provider)
+		_, _ = fmt.Fprintf(w, "    %s:\n", provider)
 		if dataMap, ok := data.(map[string]interface{}); ok {
 			if detected, ok := dataMap["detected"].(bool); ok {
 				if detected {
-					fmt.Fprintf(w, "      Detected:   Yes\n")
+					_, _ = fmt.Fprintf(w, "      Detected:   Yes\n")
 				} else {
-					fmt.Fprintf(w, "      Detected:   No\n")
+					_, _ = fmt.Fprintf(w, "      Detected:   No\n")
 				}
 			}
 			if score, ok := dataMap["score"].(string); ok && score != "" {
-				fmt.Fprintf(w, "      Score:      %s\n", score)
+				_, _ = fmt.Fprintf(w, "      Score:      %s\n", score)
 			}
 			if categories := extractStringSlice(dataMap["categories"]); len(categories) > 0 {
-				fmt.Fprintf(w, "      Categories: %s\n", strings.Join(categories, ", "))
+				_, _ = fmt.Fprintf(w, "      Categories: %s\n", strings.Join(categories, ", "))
 			}
 			if details := extractStringMap(dataMap["details"]); len(details) > 0 {
 				for key, value := range details {
-					fmt.Fprintf(w, "      %s: %s\n", key, value)
+					_, _ = fmt.Fprintf(w, "      %s: %s\n", key, value)
 				}
 			}
 			if errStr, ok := dataMap["error"].(string); ok && errStr != "" {
-				fmt.Fprintf(w, "      Error:      %s\n", errStr)
+				_, _ = fmt.Fprintf(w, "      Error:      %s\n", errStr)
 			}
 		}
 	}
