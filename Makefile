@@ -106,9 +106,7 @@ update:
 	echo "Updating GitHub Actions workflows..."; \
 	find .github/workflows -name '*.yml' -o -name '*.yaml' | while read -r file; do \
 	if grep -q 'go-version:' "$$file"; then \
-	sed -i.bak "s/go-version: '[0-9.]*'/go-version: '$$LATEST_GO'/" "$$file" && rm -f "$$file.bak"; \
-	sed -i.bak "s/go-version: \"[0-9.]*\"/go-version: \"$$LATEST_GO\"/" "$$file" && rm -f "$$file.bak"; \
-	sed -i.bak "s/go-version: [0-9.]*/go-version: $$LATEST_GO/" "$$file" && rm -f "$$file.bak"; \
+	sed -i.bak "s/go-version: *['\"]?[0-9.]*['\"]*/go-version: '$$LATEST_GO'/" "$$file" && rm -f "$$file.bak"; \
 	echo "  Updated $$file"; \
 	fi; \
 	done; \
@@ -122,7 +120,7 @@ update:
 	echo "  Updated files:"; \
 	echo "    - go.mod"; \
 	echo "    - go.sum"; \
-	git diff --name-only | grep -E '(go.mod|go.sum|\.github/)' | sed 's/^/    - /' || echo "    (no GitHub workflow files found)"; \
+	git diff --name-only 2>/dev/null | grep -E '(go.mod|go.sum|\.github/)' | sed 's/^/    - /' || echo "    (no files changed)"; \
 	echo ""; \
 	echo "Next steps:"; \
 	echo "  1. Review changes: git diff"; \
