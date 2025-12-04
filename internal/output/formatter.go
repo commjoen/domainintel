@@ -355,7 +355,8 @@ func (f *CSVFormatter) Write(w io.Writer, result *models.ScanResult) error {
 				}
 			}
 
-			// Include subdomain error or domain-level error
+			// Include subdomain error or fall back to domain-level error (e.g., crt.sh failure).
+			// Subdomain-specific errors take precedence as they are more relevant to the individual host.
 			errorMsg := sub.Error
 			if errorMsg == "" {
 				errorMsg = domain.Error
