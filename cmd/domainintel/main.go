@@ -350,10 +350,15 @@ func processDomain(ctx context.Context, domain string, crtClient *crt.Client, ch
 		fmt.Fprintf(os.Stderr, "Processing domain: %s\n", domain)
 	}
 
+	var crtError string
+
 	// Query Certificate Transparency logs
 	subdomains, err := crtClient.QuerySubdomains(ctx, domain)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query CT logs: %w", err)
+		// Store the error but continue processing with at least the base domain
+		crtError = fmt.Sprintf("crt.sh query failed: %v", err)
+		fmt.Fprintf(os.Stderr, "Warning: %s\n", crtError)
+		subdomains = []string{}
 	}
 
 	if verbose {
@@ -374,7 +379,7 @@ func processDomain(ctx context.Context, domain string, crtClient *crt.Client, ch
 	total := len(subdomains)
 	var completed int64
 
-	// Show initial progress (0%) before starting subdomain checks
+	// Always show initial progress (0%) before starting subdomain checks
 	if progress {
 		printProgress(domain, 0, total)
 	}
@@ -455,6 +460,7 @@ func processDomain(ctx context.Context, domain string, crtClient *crt.Client, ch
 	return &models.DomainResult{
 		Name:       domain,
 		Subdomains: results,
+		Error:      crtError,
 	}, nil
 }
 
