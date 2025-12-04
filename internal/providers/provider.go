@@ -160,11 +160,12 @@ func NewRateLimiter() *RateLimiter {
 	return &RateLimiter{
 		limits: make(map[string]*providerLimit),
 		defaults: map[string]int{
-			"urlvoid": 10, // 10 requests per minute
-			"vt":      4,  // VirusTotal free tier: 4 requests per minute
-			"gsafe":   10,
-			"norton":  10,
-			"scanurl": 10,
+			"urlvoid":         10, // 10 requests per minute
+			"vt":              4,  // VirusTotal free tier: 4 requests per minute
+			"gsafe":           10,
+			"norton":          10,
+			"scanurl":         10,
+			"securityheaders": 10, // SecurityHeaders.com rate limit
 		},
 	}
 }

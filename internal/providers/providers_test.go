@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -329,5 +330,220 @@ func TestManagerCheckNonExistent(t *testing.T) {
 
 	if len(results.Results) != 0 {
 		t.Errorf("Expected 0 results for non-existent provider, got %d", len(results.Results))
+	}
+}
+
+func TestSecurityHeadersName(t *testing.T) {
+	sh := NewSecurityHeaders(SecurityHeadersConfig{})
+	if sh.Name() != "securityheaders" {
+		t.Errorf("Expected name 'securityheaders', got %s", sh.Name())
+	}
+}
+
+func TestSecurityHeadersIsAvailable(t *testing.T) {
+	// SecurityHeaders does not require an API key
+	sh := NewSecurityHeaders(SecurityHeadersConfig{})
+	if !sh.IsAvailable() {
+		t.Error("Expected IsAvailable to be true (no API key required)")
+	}
+}
+
+func TestSecurityHeadersCheckMockServerJSON(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify query parameters include hide=on for privacy
+		if !strings.Contains(r.URL.RawQuery, "hide=on") {
+			t.Error("Expected hide=on parameter for privacy")
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		response := `{
+			"grade": "A",
+			"score": 90,
+			"headers": {
+				"Content-Security-Policy": true,
+				"X-Frame-Options": true,
+				"X-Content-Type-Options": true,
+				"Strict-Transport-Security": true,
+				"Referrer-Policy": false,
+				"Permissions-Policy": false
+			},
+			"url": "https://example.com"
+		}`
+		_, _ = w.Write([]byte(response))
+	}))
+	defer server.Close()
+
+	sh := &SecurityHeaders{
+		baseURL: server.URL,
+		client:  &http.Client{Timeout: 5 * time.Second},
+	}
+
+	result := sh.Check(context.Background(), "example.com")
+
+	if result.Error != "" {
+		t.Errorf("Unexpected error: %s", result.Error)
+	}
+	if result.Score != "A" {
+		t.Errorf("Expected score 'A', got %s", result.Score)
+	}
+	if result.Detected {
+		t.Error("Expected Detected to be false for grade A")
+	}
+	if result.Details["Content-Security-Policy"] != "present" {
+		t.Errorf("Expected CSP to be present, got %s", result.Details["Content-Security-Policy"])
+	}
+	if result.Details["Referrer-Policy"] != "missing" {
+		t.Errorf("Expected Referrer-Policy to be missing, got %s", result.Details["Referrer-Policy"])
+	}
+}
+
+func TestSecurityHeadersCheckMockServerGradeF(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		response := `{
+			"grade": "F",
+			"score": 10,
+			"headers": {
+				"Content-Security-Policy": false,
+				"X-Frame-Options": false,
+				"Strict-Transport-Security": false
+			}
+		}`
+		_, _ = w.Write([]byte(response))
+	}))
+	defer server.Close()
+
+	sh := &SecurityHeaders{
+		baseURL: server.URL,
+		client:  &http.Client{Timeout: 5 * time.Second},
+	}
+
+	result := sh.Check(context.Background(), "example.com")
+
+	if result.Error != "" {
+		t.Errorf("Unexpected error: %s", result.Error)
+	}
+	if result.Score != "F" {
+		t.Errorf("Expected score 'F', got %s", result.Score)
+	}
+	if !result.Detected {
+		t.Error("Expected Detected to be true for grade F (security issues)")
+	}
+	if len(result.Categories) != 3 {
+		t.Errorf("Expected 3 missing header categories, got %d", len(result.Categories))
+	}
+}
+
+func TestSecurityHeadersCheckHTMLFallback(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		html := `<html><body><div class="grade_b">B</div></body></html>`
+		_, _ = w.Write([]byte(html))
+	}))
+	defer server.Close()
+
+	sh := &SecurityHeaders{
+		baseURL: server.URL,
+		client:  &http.Client{Timeout: 5 * time.Second},
+	}
+
+	result := sh.Check(context.Background(), "example.com")
+
+	if result.Score != "B" {
+		t.Errorf("Expected score 'B' from HTML fallback, got %s", result.Score)
+	}
+	if !result.Detected {
+		t.Error("Expected Detected to be true for grade B")
+	}
+}
+
+func TestSecurityHeadersCheckServerError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	sh := &SecurityHeaders{
+		baseURL: server.URL,
+		client:  &http.Client{Timeout: 5 * time.Second},
+	}
+
+	result := sh.Check(context.Background(), "example.com")
+
+	if result.Error == "" {
+		t.Error("Expected error for server error response")
+	}
+}
+
+func TestSecurityHeadersDefaultTimeout(t *testing.T) {
+	sh := NewSecurityHeaders(SecurityHeadersConfig{})
+	// Default timeout should be set
+	if sh.client.Timeout != 30*time.Second {
+		t.Errorf("Expected default timeout of 30s, got %v", sh.client.Timeout)
+	}
+}
+
+func TestSecurityHeadersCustomTimeout(t *testing.T) {
+	sh := NewSecurityHeaders(SecurityHeadersConfig{Timeout: 60 * time.Second})
+	if sh.client.Timeout != 60*time.Second {
+		t.Errorf("Expected custom timeout of 60s, got %v", sh.client.Timeout)
+	}
+}
+
+func TestParseSecurityHeadersHTML(t *testing.T) {
+	tests := []struct {
+		name           string
+		html           string
+		expectedGrade  string
+		expectedDetect bool
+	}{
+		{
+			name:           "grade A+ class",
+			html:           `<div class="grade_a_plus">A+</div>`,
+			expectedGrade:  "A+",
+			expectedDetect: false,
+		},
+		{
+			name:           "grade A class",
+			html:           `<div class="grade_a">A</div>`,
+			expectedGrade:  "A",
+			expectedDetect: false,
+		},
+		{
+			name:           "grade F class",
+			html:           `<div class="grade_f">F</div>`,
+			expectedGrade:  "F",
+			expectedDetect: true,
+		},
+		{
+			name:           "grade-b style",
+			html:           `<span class="grade-b">B</span>`,
+			expectedGrade:  "B",
+			expectedDetect: true,
+		},
+		{
+			name:           "no grade found",
+			html:           `<html><body>No grade here</body></html>`,
+			expectedGrade:  "",
+			expectedDetect: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := &Result{
+				Provider:    "securityheaders",
+				LastChecked: time.Now(),
+				Details:     make(map[string]string),
+			}
+			result = parseSecurityHeadersHTML(tt.html, result)
+
+			if result.Score != tt.expectedGrade {
+				t.Errorf("Expected grade %q, got %q", tt.expectedGrade, result.Score)
+			}
+			if result.Detected != tt.expectedDetect {
+				t.Errorf("Expected Detected=%v, got %v", tt.expectedDetect, result.Detected)
+			}
+		})
 	}
 }
