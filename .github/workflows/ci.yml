@@ -119,7 +119,7 @@ jobs:
             ./cmd/domainintel
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: domainintel-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/domainintel-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }}
