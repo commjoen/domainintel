@@ -1,6 +1,6 @@
 module github.com/commjoen/domainintel
 
-go 1.25.5
+go 1.25.4
 
 require (
 	github.com/likexian/whois v1.15.6
