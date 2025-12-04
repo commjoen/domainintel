@@ -595,3 +595,42 @@ func TestSSLLabsCheckWorstGradeSelection(t *testing.T) {
 		t.Error("Expected Detected to be true for B grade")
 	}
 }
+
+func TestSSLLabsCheckUnknownGrade(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		// Test with an unknown grade that doesn't exist in the ranking
+		response := `{
+			"host": "example.com",
+			"status": "READY",
+			"endpoints": [
+				{
+					"ipAddress": "93.184.216.34",
+					"statusMessage": "Ready",
+					"grade": "X"
+				}
+			]
+		}`
+		_, _ = w.Write([]byte(response))
+	}))
+	defer server.Close()
+
+	ssl := &SSLLabs{
+		baseURL: server.URL,
+		client:  &http.Client{Timeout: 5 * time.Second},
+	}
+
+	result := ssl.Check(context.Background(), "example.com")
+
+	if result.Error != "" {
+		t.Errorf("Unexpected error: %s", result.Error)
+	}
+	// Unknown grade should still be returned as the score
+	if result.Score != "X" {
+		t.Errorf("Expected score 'X', got %s", result.Score)
+	}
+	// Unknown grades should be treated as potential issues
+	if !result.Detected {
+		t.Error("Expected Detected to be true for unknown grade")
+	}
+}
