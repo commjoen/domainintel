@@ -11,6 +11,26 @@ import (
 	"time"
 )
 
+// SSL Labs API query parameters
+const (
+	// sslLabsStartNew controls whether to start a new assessment
+	sslLabsStartNew = "off"
+	// sslLabsFromCache controls whether to accept cached results
+	sslLabsFromCache = "on"
+	// sslLabsMaxAge is the maximum age of cached results in hours
+	sslLabsMaxAge = "24"
+)
+
+// gradeRank maps SSL Labs grades to numeric rankings (lower is better)
+var gradeRank = map[string]int{
+	"A+": 1, "A": 2, "A-": 3,
+	"B+": 4, "B": 5, "B-": 6,
+	"C+": 7, "C": 8, "C-": 9,
+	"D+": 10, "D": 11, "D-": 12,
+	"E+": 13, "E": 14, "E-": 15,
+	"F": 16, "T": 17, "M": 18,
+}
+
 // SSLLabs is a provider for SSL Labs SSL/TLS analysis
 type SSLLabs struct {
 	baseURL string
@@ -57,11 +77,11 @@ func (s *SSLLabs) Check(ctx context.Context, domain string) *Result {
 	}
 
 	// Build request URL for analyze endpoint
-	// Use startNew=off to get cached results if available
-	// Use fromCache=on to prefer cached results
-	// Use all=done to only return when analysis is complete
-	reqURL := fmt.Sprintf("%s/analyze?host=%s&startNew=off&fromCache=on&maxAge=24",
-		s.baseURL, url.QueryEscape(domain))
+	// startNew=off: get cached results if available
+	// fromCache=on: prefer cached results
+	// maxAge: maximum age of cached results in hours
+	reqURL := fmt.Sprintf("%s/analyze?host=%s&startNew=%s&fromCache=%s&maxAge=%s",
+		s.baseURL, url.QueryEscape(domain), sslLabsStartNew, sslLabsFromCache, sslLabsMaxAge)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
@@ -125,14 +145,28 @@ func (s *SSLLabs) Check(ctx context.Context, domain string) *Result {
 		return result
 	}
 
-	// Get the best (or worst) grade from all endpoints
+	// Collect grades and find the worst (highest rank number = lowest security)
 	var grades []string
+	var worstGrade string
+	worstRank := 0
 	var hasIssues bool
+
 	for _, ep := range sslResponse.Endpoints {
 		if ep.Grade != "" {
 			grades = append(grades, ep.Grade)
-			// Consider anything below A as having issues
-			if ep.Grade != "A" && ep.Grade != "A+" {
+
+			// Use grade ranking to find worst grade
+			rank, known := gradeRank[ep.Grade]
+			if known && rank > worstRank {
+				worstRank = rank
+				worstGrade = ep.Grade
+			} else if !known && worstGrade == "" {
+				// Handle unknown grades by using the first one
+				worstGrade = ep.Grade
+			}
+
+			// Consider anything not A+ or A as having issues
+			if rank > gradeRank["A"] {
 				hasIssues = true
 			}
 		}
@@ -141,11 +175,14 @@ func (s *SSLLabs) Check(ctx context.Context, domain string) *Result {
 		}
 	}
 
-	if len(grades) > 0 {
+	if worstGrade != "" {
+		result.Score = worstGrade
+	} else if len(grades) > 0 {
 		result.Score = grades[0]
-		if len(grades) > 1 {
-			result.Details["all_grades"] = fmt.Sprintf("%v", grades)
-		}
+	}
+
+	if len(grades) > 1 {
+		result.Details["all_grades"] = fmt.Sprintf("%v", grades)
 	}
 
 	// Mark as detected if there are SSL/TLS issues

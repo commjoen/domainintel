@@ -538,12 +538,60 @@ func TestSSLLabsCheckMultipleEndpoints(t *testing.T) {
 	if result.Error != "" {
 		t.Errorf("Unexpected error: %s", result.Error)
 	}
-	// First endpoint grade should be the primary score
+	// Worst grade should be the primary score (A is worse than A+ in ranking)
 	if result.Score != "A" {
 		t.Errorf("Expected score 'A', got %s", result.Score)
 	}
 	// Should contain all grades in details
 	if result.Details["all_grades"] != "[A A+]" {
 		t.Errorf("Expected all_grades '[A A+]', got %s", result.Details["all_grades"])
+	}
+}
+
+func TestSSLLabsCheckWorstGradeSelection(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		response := `{
+			"host": "example.com",
+			"status": "READY",
+			"endpoints": [
+				{
+					"ipAddress": "93.184.216.34",
+					"statusMessage": "Ready",
+					"grade": "A+"
+				},
+				{
+					"ipAddress": "93.184.216.35",
+					"statusMessage": "Ready",
+					"grade": "B"
+				},
+				{
+					"ipAddress": "93.184.216.36",
+					"statusMessage": "Ready",
+					"grade": "A"
+				}
+			]
+		}`
+		_, _ = w.Write([]byte(response))
+	}))
+	defer server.Close()
+
+	ssl := &SSLLabs{
+		baseURL: server.URL,
+		client:  &http.Client{Timeout: 5 * time.Second},
+	}
+
+	result := ssl.Check(context.Background(), "example.com")
+
+	if result.Error != "" {
+		t.Errorf("Unexpected error: %s", result.Error)
+	}
+	// Worst grade should be B (rank 5, higher than A+ rank 1 and A rank 2)
+	if result.Score != "B" {
+		t.Errorf("Expected score 'B' (worst grade), got %s", result.Score)
+	}
+	// Should be detected since grade is below A
+	if !result.Detected {
+		t.Error("Expected Detected to be true for B grade")
 	}
 }
