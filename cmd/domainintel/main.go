@@ -81,12 +81,14 @@ discovering subdomains, checking their availability, resolving IP addresses,
 and validating TLS certificates.
 
 Third-party providers:
-  --providers vt,urlvoid,dnsbl,spamhaus,safebrowsing
-    - vt           (VirusTotal)          requires VT_API_KEY in environment
-    - urlvoid      (URLVoid)             requires URLVOID_API_KEY in environment
+  --providers dnsbl,safebrowsing,securityheaders,spamhaus,urlvoid,vt
     - dnsbl        (DNSBL listings)      no API key required (uses DNS queries)
-    - spamhaus     (Spamhaus checks)     no API key required (uses DNS queries)
     - safebrowsing (Safe Browsing)       requires SAFEBROWSING_API_KEY in environment
+    - securityheaders (SecurityHeaders)   no API key required (uses hide=on for privacy)
+    - spamhaus     (Spamhaus checks)     no API key required (uses DNS queries)
+    - urlvoid      (URLVoid)             requires URLVOID_API_KEY in environment
+    - vt           (VirusTotal)          requires VT_API_KEY in environment
+    
 If you request a provider without the required API key set, the command will fail with a clear error.`,
 	Example: `  # Basic subdomain enumeration
   domainintel --domains example.com
@@ -100,14 +102,17 @@ If you request a provider without the required API key set, the command will fai
   # Full reconnaissance with DNS and WHOIS
   domainintel --domains example.com --dig --whois
 
-  # Use DNSBL and Spamhaus checks (no API keys required)
-  domainintel --domains example.com --providers dnsbl,spamhaus
-
-  # Use third-party reputation services (API keys required)
+  # Use third-party reputation services (API keys required for vt and urlvoid)
   export VT_API_KEY=your_key
   export URLVOID_API_KEY=your_key
   export SAFEBROWSING_API_KEY=your_key
-  domainintel --domains example.com --providers vt,urlvoid,safebrowsing`,
+  domainintel --domains example.com --providers vt,urlvoid,safebrowsing
+
+  # Check security headers (no API key required)
+  domainintel --domains example.com --providers securityheaders
+
+  # Use DNSBL and Spamhaus checks (no API keys required)
+  domainintel --domains example.com --providers dnsbl,spamhaus`,
 	RunE: run,
 }
 
@@ -128,7 +133,7 @@ func init() {
 	rootCmd.Flags().BoolVar(&enableDig, "dig", false, "Enable extended DNS queries (A/AAAA/MX/TXT/NS/CNAME/SOA)")
 	rootCmd.Flags().BoolVar(&enableWhois, "whois", false, "Enable WHOIS lookups for registration data")
 	// Clarify available providers and required env keys
-	rootCmd.Flags().StringVar(&providersList, "providers", "", "Comma-separated third-party services: vt,urlvoid,dnsbl,spamhaus,safebrowsing")
+	rootCmd.Flags().StringVar(&providersList, "providers", "", "Comma-separated third-party services: dnsbl,securityheaders,safebrowsing,spamhaus,urlvoid,vt (vt/urlvoid require API keys)")
 
 	// Override the default version template to include update check
 	rootCmd.SetVersionTemplate(getVersionTemplate())
@@ -599,11 +604,12 @@ func setupProviders(list string, timeout time.Duration) (*providers.Manager, []s
 
 	// Supported providers registry
 	supported := map[string]struct{}{
-		"vt":           {},
-		"urlvoid":      {},
-		"dnsbl":        {},
-		"spamhaus":     {},
-		"safebrowsing": {},
+		"vt":              {},
+		"urlvoid":         {},
+		"dnsbl":           {},
+		"spamhaus":        {},
+		"safebrowsing":    {},
+		"securityheaders": {},
 	}
 
 	parts := strings.Split(list, ",")
@@ -621,7 +627,7 @@ func setupProviders(list string, timeout time.Duration) (*providers.Manager, []s
 		requested = append(requested, p)
 	}
 	if len(requested) == 0 {
-		return nil, nil, fmt.Errorf("no valid providers specified. Use --providers vt,urlvoid,dnsbl,spamhaus,safebrowsing")
+		return nil, nil, fmt.Errorf("no valid providers specified. Use --providers vt,urlvoid,dnsbl,spamhaus,safebrowsing,securityheaders")
 	}
 
 	// Validate API keys for requested providers
@@ -638,6 +644,7 @@ func setupProviders(list string, timeout time.Duration) (*providers.Manager, []s
 			if strings.TrimSpace(urlvoidKey) == "" {
 				return nil, nil, fmt.Errorf("URLVOID_API_KEY is required for provider 'urlvoid'")
 			}
+			// securityheaders does not require an API key
 		case "safebrowsing":
 			if strings.TrimSpace(safeBrowsingKey) == "" {
 				return nil, nil, fmt.Errorf("SAFEBROWSING_API_KEY is required for provider 'safebrowsing'")
@@ -658,6 +665,10 @@ func setupProviders(list string, timeout time.Duration) (*providers.Manager, []s
 		case "urlvoid":
 			pm.Register(providers.NewURLVoid(providers.URLVoidConfig{
 				APIKey:  urlvoidKey,
+				Timeout: timeout,
+			}))
+		case "securityheaders":
+			pm.Register(providers.NewSecurityHeaders(providers.SecurityHeadersConfig{
 				Timeout: timeout,
 			}))
 		case "dnsbl":

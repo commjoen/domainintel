@@ -160,14 +160,15 @@ func NewRateLimiter() *RateLimiter {
 	return &RateLimiter{
 		limits: make(map[string]*providerLimit),
 		defaults: map[string]int{
-			"urlvoid":      10, // 10 requests per minute
-			"vt":           4,  // VirusTotal free tier: 4 requests per minute
-			"gsafe":        10,
-			"norton":       10,
-			"scanurl":      10,
-			"dnsbl":        60, // DNSBL uses DNS queries, more lenient
-			"spamhaus":     30, // Spamhaus has rate limits for non-commercial use
-			"safebrowsing": 10, // Google Safe Browsing API
+			"urlvoid":         10, // 10 requests per minute
+			"vt":              4,  // VirusTotal free tier: 4 requests per minute
+			"gsafe":           10,
+			"norton":          10,
+			"scanurl":         10,
+			"dnsbl":           60, // DNSBL uses DNS queries, more lenient
+			"spamhaus":        30, // Spamhaus has rate limits for non-commercial use
+			"safebrowsing":    10, // Google Safe Browsing API
+			"securityheaders": 10,
 		},
 	}
 }

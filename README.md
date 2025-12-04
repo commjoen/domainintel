@@ -28,7 +28,9 @@ domainintel automates the process of discovering subdomains through Certificate 
 - **TLS Certificate Validation**: Checks certificate validity and expiration
 - **Extended DNS Queries**: Full DNS reconnaissance (A, AAAA, MX, TXT, NS, CNAME, SOA)
 - **WHOIS Lookups**: Domain registration information with caching
-- **Third-Party Reputation**: Integration with VirusTotal, URLVoid, DNSBL, Spamhaus, and Google Safe Browsing
+- **Third-Party Reputation**: Integration with VirusTotal and URLVoid, DNSBL, Spamhaus, and Google Safe Browsing
+ (API keys required)
+- **Security Headers Analysis**: Integration with SecurityHeaders.com (no API key required, uses privacy mode)
 - **Multiple Output Formats**: Text tables, JSON, and CSV
 - **Concurrent Processing**: Configurable worker pool for faster scans
 - **Security Hardened**: Input validation, path sanitization, and secure defaults
