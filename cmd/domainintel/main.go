@@ -63,9 +63,12 @@ discovering subdomains, checking their availability, resolving IP addresses,
 and validating TLS certificates.
 
 Third-party providers:
-  --providers vt,urlvoid
-    - vt      (VirusTotal) requires VT_API_KEY in environment
-    - urlvoid (URLVoid)    requires URLVOID_API_KEY in environment
+  --providers vt,urlvoid,dnsbl,spamhaus,safebrowsing
+    - vt           (VirusTotal)          requires VT_API_KEY in environment
+    - urlvoid      (URLVoid)             requires URLVOID_API_KEY in environment
+    - dnsbl        (DNSBL listings)      no API key required (uses DNS queries)
+    - spamhaus     (Spamhaus checks)     no API key required (uses DNS queries)
+    - safebrowsing (Safe Browsing)       requires SAFEBROWSING_API_KEY in environment
 If you request a provider without the required API key set, the command will fail with a clear error.`,
 	Example: `  # Basic subdomain enumeration
   domainintel --domains example.com
@@ -79,10 +82,14 @@ If you request a provider without the required API key set, the command will fai
   # Full reconnaissance with DNS and WHOIS
   domainintel --domains example.com --dig --whois
 
+  # Use DNSBL and Spamhaus checks (no API keys required)
+  domainintel --domains example.com --providers dnsbl,spamhaus
+
   # Use third-party reputation services (API keys required)
   export VT_API_KEY=your_key
   export URLVOID_API_KEY=your_key
-  domainintel --domains example.com --providers vt,urlvoid`,
+  export SAFEBROWSING_API_KEY=your_key
+  domainintel --domains example.com --providers vt,urlvoid,safebrowsing`,
 	RunE: run,
 }
 
@@ -97,7 +104,7 @@ func init() {
 	rootCmd.Flags().BoolVar(&enableDig, "dig", false, "Enable extended DNS queries (A/AAAA/MX/TXT/NS/CNAME/SOA)")
 	rootCmd.Flags().BoolVar(&enableWhois, "whois", false, "Enable WHOIS lookups for registration data")
 	// Clarify available providers and required env keys
-	rootCmd.Flags().StringVar(&providersList, "providers", "", "Comma-separated third-party services: vt,urlvoid (requires VT_API_KEY and/or URLVOID_API_KEY)")
+	rootCmd.Flags().StringVar(&providersList, "providers", "", "Comma-separated third-party services: vt,urlvoid,dnsbl,spamhaus,safebrowsing")
 
 	// Override the default version template to include update check
 	rootCmd.SetVersionTemplate(getVersionTemplate())
@@ -562,8 +569,11 @@ func setupProviders(list string, timeout time.Duration) (*providers.Manager, []s
 
 	// Supported providers registry
 	supported := map[string]struct{}{
-		"vt":      {},
-		"urlvoid": {},
+		"vt":          {},
+		"urlvoid":     {},
+		"dnsbl":       {},
+		"spamhaus":    {},
+		"safebrowsing": {},
 	}
 
 	parts := strings.Split(list, ",")
@@ -576,17 +586,18 @@ func setupProviders(list string, timeout time.Duration) (*providers.Manager, []s
 			continue
 		}
 		if _, ok := supported[p]; !ok {
-			return nil, nil, fmt.Errorf("unknown provider %q. Supported: vt,urlvoid", p)
+			return nil, nil, fmt.Errorf("unknown provider %q. Supported: vt,urlvoid,dnsbl,spamhaus,safebrowsing", p)
 		}
 		requested = append(requested, p)
 	}
 	if len(requested) == 0 {
-		return nil, nil, fmt.Errorf("no valid providers specified. Use --providers vt,urlvoid")
+		return nil, nil, fmt.Errorf("no valid providers specified. Use --providers vt,urlvoid,dnsbl,spamhaus,safebrowsing")
 	}
 
 	// Validate API keys for requested providers
 	vtKey := os.Getenv("VT_API_KEY")
 	urlvoidKey := os.Getenv("URLVOID_API_KEY")
+	safeBrowsingKey := os.Getenv("SAFEBROWSING_API_KEY")
 	for _, p := range requested {
 		switch p {
 		case "vt":
@@ -597,6 +608,11 @@ func setupProviders(list string, timeout time.Duration) (*providers.Manager, []s
 			if strings.TrimSpace(urlvoidKey) == "" {
 				return nil, nil, fmt.Errorf("URLVOID_API_KEY is required for provider 'urlvoid'")
 			}
+		case "safebrowsing":
+			if strings.TrimSpace(safeBrowsingKey) == "" {
+				return nil, nil, fmt.Errorf("SAFEBROWSING_API_KEY is required for provider 'safebrowsing'")
+			}
+		// dnsbl and spamhaus don't require API keys
 		}
 	}
 
@@ -612,6 +628,19 @@ func setupProviders(list string, timeout time.Duration) (*providers.Manager, []s
 		case "urlvoid":
 			pm.Register(providers.NewURLVoid(providers.URLVoidConfig{
 				APIKey:  urlvoidKey,
+				Timeout: timeout,
+			}))
+		case "dnsbl":
+			pm.Register(providers.NewDNSBL(providers.DNSBLConfig{
+				Timeout: timeout,
+			}))
+		case "spamhaus":
+			pm.Register(providers.NewSpamhaus(providers.SpamhausConfig{
+				Timeout: timeout,
+			}))
+		case "safebrowsing":
+			pm.Register(providers.NewSafeBrowsing(providers.SafeBrowsingConfig{
+				APIKey:  safeBrowsingKey,
 				Timeout: timeout,
 			}))
 		}

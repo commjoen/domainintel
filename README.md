@@ -28,7 +28,7 @@ domainintel automates the process of discovering subdomains through Certificate 
 - **TLS Certificate Validation**: Checks certificate validity and expiration
 - **Extended DNS Queries**: Full DNS reconnaissance (A, AAAA, MX, TXT, NS, CNAME, SOA)
 - **WHOIS Lookups**: Domain registration information with caching
-- **Third-Party Reputation**: Integration with VirusTotal and URLVoid (API keys required)
+- **Third-Party Reputation**: Integration with VirusTotal, URLVoid, DNSBL, Spamhaus, and Google Safe Browsing
 - **Multiple Output Formats**: Text tables, JSON, and CSV
 - **Concurrent Processing**: Configurable worker pool for faster scans
 - **Security Hardened**: Input validation, path sanitization, and secure defaults
@@ -126,6 +126,38 @@ domainintel --domains example.com --format json | jq -r '.domains[].subdomains[]
 | `--concurrent` | `-c` | int | `10` | Maximum concurrent requests |
 | `--verbose` | `-v` | bool | `false` | Enable verbose logging |
 | `--progress` | `-p` | bool | `false` | Show progress bar during scan |
+| `--providers` | | string | | Comma-separated reputation providers |
+
+## Reputation Providers
+
+domainintel integrates with several third-party reputation services:
+
+| Provider | Flag Value | API Key Required | Description |
+|----------|------------|------------------|-------------|
+| VirusTotal | `vt` | Yes (`VT_API_KEY`) | Comprehensive threat intelligence |
+| URLVoid | `urlvoid` | Yes (`URLVOID_API_KEY`) | Website reputation checking |
+| DNSBL | `dnsbl` | No | DNS-based Blackhole Lists (spam/malware) |
+| Spamhaus | `spamhaus` | No | Spamhaus DBL domain reputation |
+| Safe Browsing | `safebrowsing` | Yes (`SAFEBROWSING_API_KEY`) | Google Safe Browsing API |
+
+### Usage Examples
+
+```bash
+# Use DNSBL and Spamhaus (no API keys required)
+domainintel --domains example.com --providers dnsbl,spamhaus
+
+# Use VirusTotal (requires API key)
+export VT_API_KEY=your_virustotal_api_key
+domainintel --domains example.com --providers vt
+
+# Use Google Safe Browsing (requires API key)
+export SAFEBROWSING_API_KEY=your_google_api_key
+domainintel --domains example.com --providers safebrowsing
+
+# Use multiple providers
+export VT_API_KEY=your_key
+domainintel --domains example.com --providers vt,dnsbl,spamhaus
+```
 
 ## Security
 
