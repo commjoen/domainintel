@@ -21,16 +21,16 @@ type SpamhausConfig struct {
 
 // Spamhaus return codes for ZEN combined list
 var spamhausReturnCodes = map[string]string{
-	"127.0.0.2":  "SBL - Spamhaus Block List",
-	"127.0.0.3":  "SBL CSS - Spamhaus Block List CSS",
-	"127.0.0.4":  "XBL - Exploits Block List (CBL)",
-	"127.0.0.9":  "SBL DROP - Spamhaus DROP/EDROP",
-	"127.0.0.10": "PBL - Policy Block List (ISP range)",
-	"127.0.0.11": "PBL - Policy Block List (ISP range)",
-	"127.0.1.2":  "DBL - Spamhaus Domain Block List (spam domain)",
-	"127.0.1.4":  "DBL - Spamhaus Domain Block List (phishing domain)",
-	"127.0.1.5":  "DBL - Spamhaus Domain Block List (malware domain)",
-	"127.0.1.6":  "DBL - Spamhaus Domain Block List (botnet C&C domain)",
+	"127.0.0.2":   "SBL - Spamhaus Block List",
+	"127.0.0.3":   "SBL CSS - Spamhaus Block List CSS",
+	"127.0.0.4":   "XBL - Exploits Block List (CBL)",
+	"127.0.0.9":   "SBL DROP - Spamhaus DROP/EDROP",
+	"127.0.0.10":  "PBL - Policy Block List (ISP range)",
+	"127.0.0.11":  "PBL - Policy Block List (ISP range)",
+	"127.0.1.2":   "DBL - Spamhaus Domain Block List (spam domain)",
+	"127.0.1.4":   "DBL - Spamhaus Domain Block List (phishing domain)",
+	"127.0.1.5":   "DBL - Spamhaus Domain Block List (malware domain)",
+	"127.0.1.6":   "DBL - Spamhaus Domain Block List (botnet C&C domain)",
 	"127.0.1.102": "DBL - Spamhaus Domain Block List (abused legit spam)",
 	"127.0.1.103": "DBL - Spamhaus Domain Block List (abused redirector)",
 	"127.0.1.104": "DBL - Spamhaus Domain Block List (abused legit phish)",
@@ -96,7 +96,7 @@ func (s *Spamhaus) Check(ctx context.Context, domain string) *Result {
 	result.Score = "1/1"
 
 	// Parse return codes
-	var returnCodes []string
+	returnCodes := make([]string, 0, len(addrs))
 	for _, addr := range addrs {
 		if description, ok := spamhausReturnCodes[addr]; ok {
 			result.Categories = append(result.Categories, description)

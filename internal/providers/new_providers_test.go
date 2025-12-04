@@ -80,7 +80,7 @@ func TestDNSBLContextCancellation(t *testing.T) {
 	result := d.Check(ctx, "example.com")
 
 	if result.Error == "" {
-		t.Error("Expected error when context is cancelled")
+		t.Error("Expected error when context is canceled")
 	}
 }
 

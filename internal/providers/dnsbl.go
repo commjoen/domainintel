@@ -78,7 +78,7 @@ func (d *DNSBL) Check(ctx context.Context, domain string) *Result {
 	for _, bl := range d.lists {
 		select {
 		case <-ctx.Done():
-			result.Error = "context cancelled"
+			result.Error = "context canceled"
 			return result
 		default:
 		}

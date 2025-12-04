@@ -172,9 +172,9 @@ type safeBrowsingClient struct {
 }
 
 type safeBrowsingThreatInfo struct {
-	ThreatTypes      []string                   `json:"threatTypes"`
-	PlatformTypes    []string                   `json:"platformTypes"`
-	ThreatEntryTypes []string                   `json:"threatEntryTypes"`
+	ThreatTypes      []string                  `json:"threatTypes"`
+	PlatformTypes    []string                  `json:"platformTypes"`
+	ThreatEntryTypes []string                  `json:"threatEntryTypes"`
 	ThreatEntries    []safeBrowsingThreatEntry `json:"threatEntries"`
 }
 

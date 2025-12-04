@@ -569,10 +569,10 @@ func setupProviders(list string, timeout time.Duration) (*providers.Manager, []s
 
 	// Supported providers registry
 	supported := map[string]struct{}{
-		"vt":          {},
-		"urlvoid":     {},
-		"dnsbl":       {},
-		"spamhaus":    {},
+		"vt":           {},
+		"urlvoid":      {},
+		"dnsbl":        {},
+		"spamhaus":     {},
 		"safebrowsing": {},
 	}
 
@@ -612,7 +612,7 @@ func setupProviders(list string, timeout time.Duration) (*providers.Manager, []s
 			if strings.TrimSpace(safeBrowsingKey) == "" {
 				return nil, nil, fmt.Errorf("SAFEBROWSING_API_KEY is required for provider 'safebrowsing'")
 			}
-		// dnsbl and spamhaus don't require API keys
+			// dnsbl and spamhaus don't require API keys
 		}
 	}
 
