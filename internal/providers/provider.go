@@ -169,6 +169,7 @@ func NewRateLimiter() *RateLimiter {
 			"spamhaus":        30, // Spamhaus has rate limits for non-commercial use
 			"safebrowsing":    10, // Google Safe Browsing API
 			"securityheaders": 10,
+			"ssllabs":         1, // SSL Labs: conservative limit due to slow analysis
 		},
 	}
 }

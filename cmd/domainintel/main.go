@@ -81,11 +81,12 @@ discovering subdomains, checking their availability, resolving IP addresses,
 and validating TLS certificates.
 
 Third-party providers:
-  --providers dnsbl,safebrowsing,securityheaders,spamhaus,urlvoid,vt
+  --providers dnsbl,safebrowsing,securityheaders,spamhaus,ssllabs,urlvoid,vt
     - dnsbl        (DNSBL listings)      no API key required (uses DNS queries)
     - safebrowsing (Safe Browsing)       requires SAFEBROWSING_API_KEY in environment
     - securityheaders (SecurityHeaders)   no API key required (uses hide=on for privacy)
     - spamhaus     (Spamhaus checks)     no API key required (uses DNS queries)
+    - ssllabs      (SSL Labs)            no API key required (free public API)
     - urlvoid      (URLVoid)             requires URLVOID_API_KEY in environment
     - vt           (VirusTotal)          requires VT_API_KEY in environment
     
@@ -111,6 +112,9 @@ If you request a provider without the required API key set, the command will fai
   # Check security headers (no API key required)
   domainintel --domains example.com --providers securityheaders
 
+  # Use SSL Labs for SSL/TLS analysis (no API key required)
+  domainintel --domains example.com --providers ssllabs
+
   # Use DNSBL and Spamhaus checks (no API keys required)
   domainintel --domains example.com --providers dnsbl,spamhaus`,
 	RunE: run,
@@ -133,7 +137,7 @@ func init() {
 	rootCmd.Flags().BoolVar(&enableDig, "dig", false, "Enable extended DNS queries (A/AAAA/MX/TXT/NS/CNAME/SOA)")
 	rootCmd.Flags().BoolVar(&enableWhois, "whois", false, "Enable WHOIS lookups for registration data")
 	// Clarify available providers and required env keys
-	rootCmd.Flags().StringVar(&providersList, "providers", "", "Comma-separated third-party services: dnsbl,securityheaders,safebrowsing,spamhaus,urlvoid,vt (vt/urlvoid require API keys)")
+	rootCmd.Flags().StringVar(&providersList, "providers", "", "Comma-separated third-party services: dnsbl,securityheaders,safebrowsing,spamhaus,ssllabs,urlvoid,vt (vt/urlvoid require API keys)")
 
 	// Override the default version template to include update check
 	rootCmd.SetVersionTemplate(getVersionTemplate())
@@ -610,6 +614,7 @@ func setupProviders(list string, timeout time.Duration) (*providers.Manager, []s
 		"spamhaus":        {},
 		"safebrowsing":    {},
 		"securityheaders": {},
+		"ssllabs":         {},
 	}
 
 	parts := strings.Split(list, ",")
@@ -622,12 +627,12 @@ func setupProviders(list string, timeout time.Duration) (*providers.Manager, []s
 			continue
 		}
 		if _, ok := supported[p]; !ok {
-			return nil, nil, fmt.Errorf("unknown provider %q. Supported: vt,urlvoid,dnsbl,spamhaus,safebrowsing", p)
+			return nil, nil, fmt.Errorf("unknown provider %q. Supported: vt,urlvoid,dnsbl,spamhaus,safebrowsing,ssllabs", p)
 		}
 		requested = append(requested, p)
 	}
 	if len(requested) == 0 {
-		return nil, nil, fmt.Errorf("no valid providers specified. Use --providers vt,urlvoid,dnsbl,spamhaus,safebrowsing,securityheaders")
+		return nil, nil, fmt.Errorf("no valid providers specified. Use --providers vt,urlvoid,dnsbl,spamhaus,safebrowsing,securityheaders,ssllabs")
 	}
 
 	// Validate API keys for requested providers
@@ -682,6 +687,10 @@ func setupProviders(list string, timeout time.Duration) (*providers.Manager, []s
 		case "safebrowsing":
 			pm.Register(providers.NewSafeBrowsing(providers.SafeBrowsingConfig{
 				APIKey:  safeBrowsingKey,
+				Timeout: timeout,
+			}))
+		case "ssllabs":
+			pm.Register(providers.NewSSLLabs(providers.SSLLabsConfig{
 				Timeout: timeout,
 			}))
 		}
