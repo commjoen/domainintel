@@ -37,7 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved error handling for missing API keys
 - Better formatted help text for all CLI flags
 - More descriptive version checking output
-- Updated Go version requirement to 1.25.4+
+- Updated Go version requirement to 1.25.11
 
 ### Technical Details
 - GitHub Actions integration with automated version updates
