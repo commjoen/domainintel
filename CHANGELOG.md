@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.1.4] - 2025-12-04
+
+### Added
+- **GitHub Workflows Badges**
+  - CI, Security Scan, and Release workflow status badges in README.md
+  - Go Report Card, License, and Go Version badges
+  - Real-time workflow status indicators
+
+- **Improved Makefile**
+  - `make update` target to update Go version and dependencies
+  - Automatic GitHub Actions workflow version synchronization
+  - Enhanced update checking and notifications
+
+- **golangci-lint v2 Configuration**
+  - Updated `.golangci.yml` with v2 compatibility
+  - Comprehensive linter settings for code quality
+  - Dependency exclusion rules for vendor directories
+  - Generated file exclusion patterns
+
+### Fixed
+- golangci-lint v2 configuration format and compatibility
+- Makefile tab indentation issues in recipe lines
+- Dependency version conflicts with `golang.org/x/tools`
+- README.md formatting and badge URLs
+
+### Changed
+- Enhanced README.md with comprehensive documentation
+- Improved error handling for missing API keys
+- Better formatted help text for all CLI flags
+- More descriptive version checking output
+- Updated Go version requirement to 1.25.4+
+
+### Technical Details
+- GitHub Actions integration with automated version updates
+- CI/CD pipeline with linting, testing, and security scanning
+- Improved build process with cross-platform compilation
+- Better dependency management with `go mod tidy`
+
 ## [0.1.3] - 2025-12-03
 
 ### Added
@@ -33,7 +73,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.1] - 2025-12-03
 
 ### Added
-
 - **Certificate Transparency (CT) Log Integration**
   - Query crt.sh for subdomain enumeration
   - Automatic subdomain discovery from CT logs
@@ -190,7 +229,8 @@ domainintel --domains example.com \
 - [ ] Export to additional formats (HTML, Markdown)
 - [ ] Semantic version comparison for update checks
 
-[Unreleased]: https://github.com/commjoen/domainintel/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/commjoen/domainintel/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/commjoen/domainintel/releases/tag/v0.1.4
 [0.1.3]: https://github.com/commjoen/domainintel/releases/tag/v0.1.3
 [0.1.2]: https://github.com/commjoen/domainintel/releases/tag/v0.1.2
 [0.1.1]: https://github.com/commjoen/domainintel/releases/tag/v0.1.1
