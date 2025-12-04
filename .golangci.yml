@@ -52,7 +52,8 @@ formatters:
     gofmt:
       simplify: true
     goimports:
-      local-prefixes: github.com/commjoen/domainintel
+      local-prefixes:
+        - github.com/commjoen/domainintel
 
 output:
   show-stats: true
