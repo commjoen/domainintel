@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5] - 2025-12-04
+
+### Added
+- **Wildcard Pattern Matching (`--wildcard` / `-w` flag)**
+  - Wildcard subdomain search with patterns like `*.example.com`
+  - Keyword-based domain search with patterns like `*security*`
+  - Certificate Transparency log queries for wildcard patterns
+  - New `SearchByKeyword()` function in `crt` package for fuzzy CT log searches
+  - Domain format validation for wildcard search results
+  - Comprehensive error messages when wildcard flag is missing
+
+- **Improved Progress Bar Support**
+  - Progress bar now shows CT log query progress (indeterminate spinner)
+  - Separate progress tracking for reachability checks
+  - Query count display for multiple domain/pattern searches
+  - Better visual feedback for long-running operations
+
+### Changed
+- Enhanced domain parsing logic to support wildcard patterns
+- Improved flag documentation and CLI examples
+- Better error handling for invalid wildcard patterns
+- More informative verbose logging for pattern-based searches
+
+### Technical Details
+- Added `extractBaseDomain()` helper function for pattern normalization
+- Added `isValidDomainFormat()` function for result validation
+- Implemented `crt.SearchByKeyword()` for %keyword% CT log queries
+- Updated `runScan()` to handle both domain and keyword searches
+- Query counter now includes both standard and wildcard searches
+
+### Examples
+```bash
+# Wildcard keyword search - finds all domains containing 'security'
+domainintel -d '*security*' --wildcard -p
+
+# Wildcard subdomain search - finds *.example.com
+domainintel -d '*.example.com' -w -p
+
+# Mixed pattern search
+domainintel -d 'example.com,*.test.com,*staging*' --wildcard -v
+
+# With all features enabled
+domainintel -d '*wrongsecrets*' --wildcard --dig --whois -f json -p
+```
+
 ## [0.1.4] - 2025-12-04
 
 ### Added
@@ -179,6 +224,18 @@ domainintel --domains example.com --dig --whois
 domainintel --domains example.com,example.org --format json --out results.json
 ```
 
+### Wildcard Pattern Searches
+```bash
+# Search for domains containing a keyword
+domainintel --domains '*security*' --wildcard -p
+
+# Search for all subdomains
+domainintel --domains '*.example.com' --wildcard -p -v
+
+# Multiple patterns
+domainintel --domains 'example.com,*.staging.com,*api*' --wildcard
+```
+
 ### Third-Party Providers
 ```bash
 # Set up API keys
@@ -229,9 +286,10 @@ domainintel --domains example.com \
 - [ ] Export to additional formats (HTML, Markdown)
 - [ ] Semantic version comparison for update checks
 
-[Unreleased]: https://github.com/commjoen/domainintel/compare/v0.1.4...HEAD
-[0.1.4]: https://github.com/commjoen/domainintel/releases/tag/v0.1.4
-[0.1.3]: https://github.com/commjoen/domainintel/releases/tag/v0.1.3
-[0.1.2]: https://github.com/commjoen/domainintel/releases/tag/v0.1.2
-[0.1.1]: https://github.com/commjoen/domainintel/releases/tag/v0.1.1
+[Unreleased]: https://github.com/commjoen/domainintel/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/commjoen/domainintel/compare/v0.1.4...v0.1.5
+[0.1.4]: https://github.com/commjoen/domainintel/compare/v0.1.3...v0.1.4
+[0.1.3]: https://github.com/commjoen/domainintel/compare/v0.1.2...v0.1.3
+[0.1.2]: https://github.com/commjoen/domainintel/compare/v0.1.1...v0.1.2
+[0.1.1]: https://github.com/commjoen/domainintel/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/commjoen/domainintel/releases/tag/v0.1.0

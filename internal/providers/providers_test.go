@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -332,349 +333,570 @@ func TestManagerCheckNonExistent(t *testing.T) {
 	}
 }
 
-func TestSSLLabsName(t *testing.T) {
-	ssl := NewSSLLabs(SSLLabsConfig{})
-	if ssl.Name() != "ssllabs" {
-		t.Errorf("Expected name 'ssllabs', got %s", ssl.Name())
+func TestSecurityHeadersName(t *testing.T) {
+	sh := NewSecurityHeaders(SecurityHeadersConfig{})
+	if sh.Name() != "securityheaders" {
+		t.Errorf("Expected name 'securityheaders', got %s", sh.Name())
 	}
 }
 
-func TestSSLLabsIsAvailable(t *testing.T) {
-	ssl := NewSSLLabs(SSLLabsConfig{})
-	// SSL Labs is always available (free public API)
-	if !ssl.IsAvailable() {
-		t.Error("Expected IsAvailable to be true for SSL Labs")
+func TestSecurityHeadersIsAvailable(t *testing.T) {
+	// SecurityHeaders does not require an API key
+	sh := NewSecurityHeaders(SecurityHeadersConfig{})
+	if !sh.IsAvailable() {
+		t.Error("Expected IsAvailable to be true (no API key required)")
 	}
 }
 
-func TestSSLLabsCheckMockServer(t *testing.T) {
+func TestSecurityHeadersCheckMockServerJSON(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify query parameters include hide=on for privacy
+		if !strings.Contains(r.URL.RawQuery, "hide=on") {
+			t.Error("Expected hide=on parameter for privacy")
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		response := `{
-			"host": "example.com",
-			"port": 443,
-			"protocol": "http/1.1",
-			"status": "READY",
-			"startTime": 1234567890,
-			"testTime": 1234567900,
-			"engineVersion": "2.0.0",
-			"endpoints": [{
-				"ipAddress": "93.184.216.34",
-				"serverName": "example.com",
-				"statusMessage": "Ready",
-				"grade": "A+",
-				"hasWarnings": false,
-				"isExceptional": true
-			}]
+			"grade": "A",
+			"score": 90,
+			"headers": {
+				"Content-Security-Policy": true,
+				"X-Frame-Options": true,
+				"X-Content-Type-Options": true,
+				"Strict-Transport-Security": true,
+				"Referrer-Policy": false,
+				"Permissions-Policy": false
+			},
+			"url": "https://example.com"
 		}`
 		_, _ = w.Write([]byte(response))
 	}))
 	defer server.Close()
 
-	ssl := &SSLLabs{
+	sh := &SecurityHeaders{
 		baseURL: server.URL,
 		client:  &http.Client{Timeout: 5 * time.Second},
 	}
 
-	result := ssl.Check(context.Background(), "example.com")
+	result := sh.Check(context.Background(), "example.com")
 
 	if result.Error != "" {
 		t.Errorf("Unexpected error: %s", result.Error)
 	}
-	if result.Score != "A+" {
-		t.Errorf("Expected score 'A+', got %s", result.Score)
-	}
-	if result.Detected {
-		t.Error("Expected Detected to be false for A+ grade")
-	}
-	if result.Details["host"] != "example.com" {
-		t.Errorf("Expected host 'example.com', got %s", result.Details["host"])
-	}
-	if result.Details["ip_address"] != "93.184.216.34" {
-		t.Errorf("Expected ip_address '93.184.216.34', got %s", result.Details["ip_address"])
-	}
-}
-
-func TestSSLLabsCheckWithWarnings(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		response := `{
-			"host": "example.com",
-			"status": "READY",
-			"endpoints": [{
-				"ipAddress": "93.184.216.34",
-				"statusMessage": "Ready",
-				"grade": "B",
-				"hasWarnings": true
-			}]
-		}`
-		_, _ = w.Write([]byte(response))
-	}))
-	defer server.Close()
-
-	ssl := &SSLLabs{
-		baseURL: server.URL,
-		client:  &http.Client{Timeout: 5 * time.Second},
-	}
-
-	result := ssl.Check(context.Background(), "example.com")
-
-	if result.Error != "" {
-		t.Errorf("Unexpected error: %s", result.Error)
-	}
-	if result.Score != "B" {
-		t.Errorf("Expected score 'B', got %s", result.Score)
-	}
-	if !result.Detected {
-		t.Error("Expected Detected to be true for B grade with warnings")
-	}
-}
-
-func TestSSLLabsCheckInProgress(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		response := `{
-			"host": "example.com",
-			"status": "IN_PROGRESS",
-			"endpoints": []
-		}`
-		_, _ = w.Write([]byte(response))
-	}))
-	defer server.Close()
-
-	ssl := &SSLLabs{
-		baseURL: server.URL,
-		client:  &http.Client{Timeout: 5 * time.Second},
-	}
-
-	result := ssl.Check(context.Background(), "example.com")
-
-	if result.Error == "" {
-		t.Error("Expected error for IN_PROGRESS status")
-	}
-	if result.Error != "analysis in progress, try again later" {
-		t.Errorf("Unexpected error message: %s", result.Error)
-	}
-}
-
-func TestSSLLabsCheckError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		response := `{
-			"host": "example.com",
-			"status": "ERROR",
-			"statusMessage": "Unable to resolve domain"
-		}`
-		_, _ = w.Write([]byte(response))
-	}))
-	defer server.Close()
-
-	ssl := &SSLLabs{
-		baseURL: server.URL,
-		client:  &http.Client{Timeout: 5 * time.Second},
-	}
-
-	result := ssl.Check(context.Background(), "example.com")
-
-	if result.Error == "" {
-		t.Error("Expected error for ERROR status")
-	}
-	if result.Error != "analysis error: Unable to resolve domain" {
-		t.Errorf("Unexpected error message: %s", result.Error)
-	}
-}
-
-func TestSSLLabsCheckRateLimit(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusTooManyRequests)
-	}))
-	defer server.Close()
-
-	ssl := &SSLLabs{
-		baseURL: server.URL,
-		client:  &http.Client{Timeout: 5 * time.Second},
-	}
-
-	result := ssl.Check(context.Background(), "example.com")
-
-	if result.Error == "" {
-		t.Error("Expected error for rate limit")
-	}
-	if result.Error != "SSL Labs rate limit exceeded, please try again later" {
-		t.Errorf("Unexpected error message: %s", result.Error)
-	}
-}
-
-func TestSSLLabsCheckMultipleEndpoints(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		response := `{
-			"host": "example.com",
-			"status": "READY",
-			"endpoints": [
-				{
-					"ipAddress": "93.184.216.34",
-					"statusMessage": "Ready",
-					"grade": "A"
-				},
-				{
-					"ipAddress": "93.184.216.35",
-					"statusMessage": "Ready",
-					"grade": "A+"
-				}
-			]
-		}`
-		_, _ = w.Write([]byte(response))
-	}))
-	defer server.Close()
-
-	ssl := &SSLLabs{
-		baseURL: server.URL,
-		client:  &http.Client{Timeout: 5 * time.Second},
-	}
-
-	result := ssl.Check(context.Background(), "example.com")
-
-	if result.Error != "" {
-		t.Errorf("Unexpected error: %s", result.Error)
-	}
-	// Worst grade should be the primary score (A is worse than A+ in ranking)
 	if result.Score != "A" {
 		t.Errorf("Expected score 'A', got %s", result.Score)
 	}
-	// Should contain all grades in details
-	if result.Details["all_grades"] != "[A A+]" {
-		t.Errorf("Expected all_grades '[A A+]', got %s", result.Details["all_grades"])
+	if result.Detected {
+		t.Error("Expected Detected to be false for grade A")
 	}
+	if result.Details["Content-Security-Policy"] != "present" {
+		t.Errorf("Expected CSP to be present, got %s", result.Details["Content-Security-Policy"])
+	}
+	if result.Details["Referrer-Policy"] != "missing" {
+		t.Errorf("Expected Referrer-Policy to be missing, got %s", result.Details["Referrer-Policy"])
+	}
+}
+
+func TestSecurityHeadersCheckMockServerGradeF(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		response := `{
+			"grade": "F",
+			"score": 10,
+			"headers": {
+				"Content-Security-Policy": false,
+				"X-Frame-Options": false,
+				"Strict-Transport-Security": false
+			}
+		}`
+		_, _ = w.Write([]byte(response))
+	}))
+	defer server.Close()
+
+	sh := &SecurityHeaders{
+		baseURL: server.URL,
+		client:  &http.Client{Timeout: 5 * time.Second},
+	}
+
+	result := sh.Check(context.Background(), "example.com")
+
+	if result.Error != "" {
+		t.Errorf("Unexpected error: %s", result.Error)
+	}
+	if result.Score != "F" {
+		t.Errorf("Expected score 'F', got %s", result.Score)
+	}
+	if !result.Detected {
+		t.Error("Expected Detected to be true for grade F (security issues)")
+	}
+	if len(result.Categories) != 3 {
+		t.Errorf("Expected 3 missing header categories, got %d", len(result.Categories))
+	}
+}
+
+func TestSecurityHeadersCheckHTMLFallback(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		html := `<html><body><div class="grade_b">B</div></body></html>`
+		_, _ = w.Write([]byte(html))
+	}))
+	defer server.Close()
+
+	sh := &SecurityHeaders{
+		baseURL: server.URL,
+		client:  &http.Client{Timeout: 5 * time.Second},
+	}
+
+	result := sh.Check(context.Background(), "example.com")
+
+	if result.Score != "B" {
+		t.Errorf("Expected score 'B' from HTML fallback, got %s", result.Score)
+	}
+	if result.Detected {
+		t.Error("Expected Detected to be false for grade B (only D, E, F indicate security issues)")
+	}
+}
+
+func TestSecurityHeadersCheckServerError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	sh := &SecurityHeaders{
+		baseURL: server.URL,
+		client:  &http.Client{Timeout: 5 * time.Second},
+	}
+
+	result := sh.Check(context.Background(), "example.com")
+
+	if result.Error == "" {
+		t.Error("Expected error for server error response")
+	}
+}
+
+func TestSecurityHeadersDefaultTimeout(t *testing.T) {
+	sh := NewSecurityHeaders(SecurityHeadersConfig{})
+	// Default timeout should be set
+	if sh.client.Timeout != 30*time.Second {
+		t.Errorf("Expected default timeout of 30s, got %v", sh.client.Timeout)
+	}
+}
+
+func TestSecurityHeadersCustomTimeout(t *testing.T) {
+	sh := NewSecurityHeaders(SecurityHeadersConfig{Timeout: 60 * time.Second})
+	if sh.client.Timeout != 60*time.Second {
+		t.Errorf("Expected custom timeout of 60s, got %v", sh.client.Timeout)
+	}
+}
+
+func TestParseSecurityHeadersHTML(t *testing.T) {
+	tests := []struct {
+		name           string
+		html           string
+		expectedGrade  string
+		expectedDetect bool
+	}{
+		{
+			name:           "grade A+ class",
+			html:           `<div class="grade_a_plus">A+</div>`,
+			expectedGrade:  "A+",
+			expectedDetect: false,
+		},
+		{
+			name:           "grade A class",
+			html:           `<div class="grade_a">A</div>`,
+			expectedGrade:  "A",
+			expectedDetect: false,
+		},
+		{
+			name:           "grade F class",
+			html:           `<div class="grade_f">F</div>`,
+			expectedGrade:  "F",
+			expectedDetect: true,
+		},
+		{
+			name:           "grade-b style",
+			html:           `<span class="grade-b">B</span>`,
+			expectedGrade:  "B",
+			expectedDetect: false, // B is not a poor grade (D, E, F)
+		},
+		{
+			name:           "grade-d style",
+			html:           `<span class="grade-d">D</span>`,
+			expectedGrade:  "D",
+			expectedDetect: true, // D is a poor grade
+		},
+		{
+			name:           "no grade found",
+			html:           `<html><body>No grade here</body></html>`,
+			expectedGrade:  "",
+			expectedDetect: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := &Result{
+				Provider:    "securityheaders",
+				LastChecked: time.Now(),
+				Details:     make(map[string]string),
+			}
+			result = parseSecurityHeadersHTML(tt.html, result)
+
+			if result.Score != tt.expectedGrade {
+				t.Errorf("Expected grade %q, got %q", tt.expectedGrade, result.Score)
+			}
+			if result.Detected != tt.expectedDetect {
+				t.Errorf("Expected Detected=%v, got %v", tt.expectedDetect, result.Detected)
+			}
+		})
+	}
+}
+
+func TestSSLLabsName(t *testing.T) {
+ssl := NewSSLLabs(SSLLabsConfig{})
+if ssl.Name() != "ssllabs" {
+t.Errorf("Expected name 'ssllabs', got %s", ssl.Name())
+}
+}
+
+func TestSSLLabsIsAvailable(t *testing.T) {
+ssl := NewSSLLabs(SSLLabsConfig{})
+// SSL Labs is always available (free public API)
+if !ssl.IsAvailable() {
+t.Error("Expected IsAvailable to be true for SSL Labs")
+}
+}
+
+func TestSSLLabsCheckMockServer(t *testing.T) {
+server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+w.Header().Set("Content-Type", "application/json")
+response := `{
+"host": "example.com",
+"port": 443,
+"protocol": "http/1.1",
+"status": "READY",
+"startTime": 1234567890,
+"testTime": 1234567900,
+"engineVersion": "2.0.0",
+"endpoints": [{
+"ipAddress": "93.184.216.34",
+"serverName": "example.com",
+"statusMessage": "Ready",
+"grade": "A+",
+"hasWarnings": false,
+"isExceptional": true
+}]
+}`
+_, _ = w.Write([]byte(response))
+}))
+defer server.Close()
+
+ssl := &SSLLabs{
+baseURL: server.URL,
+client:  &http.Client{Timeout: 5 * time.Second},
+}
+
+result := ssl.Check(context.Background(), "example.com")
+
+if result.Error != "" {
+t.Errorf("Unexpected error: %s", result.Error)
+}
+if result.Score != "A+" {
+t.Errorf("Expected score 'A+', got %s", result.Score)
+}
+if result.Detected {
+t.Error("Expected Detected to be false for A+ grade")
+}
+if result.Details["host"] != "example.com" {
+t.Errorf("Expected host 'example.com', got %s", result.Details["host"])
+}
+if result.Details["ip_address"] != "93.184.216.34" {
+t.Errorf("Expected ip_address '93.184.216.34', got %s", result.Details["ip_address"])
+}
+}
+
+func TestSSLLabsCheckWithWarnings(t *testing.T) {
+server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+w.Header().Set("Content-Type", "application/json")
+response := `{
+"host": "example.com",
+"status": "READY",
+"endpoints": [{
+"ipAddress": "93.184.216.34",
+"statusMessage": "Ready",
+"grade": "B",
+"hasWarnings": true
+}]
+}`
+_, _ = w.Write([]byte(response))
+}))
+defer server.Close()
+
+ssl := &SSLLabs{
+baseURL: server.URL,
+client:  &http.Client{Timeout: 5 * time.Second},
+}
+
+result := ssl.Check(context.Background(), "example.com")
+
+if result.Error != "" {
+t.Errorf("Unexpected error: %s", result.Error)
+}
+if result.Score != "B" {
+t.Errorf("Expected score 'B', got %s", result.Score)
+}
+if !result.Detected {
+t.Error("Expected Detected to be true for B grade with warnings")
+}
+}
+
+func TestSSLLabsCheckInProgress(t *testing.T) {
+server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+w.Header().Set("Content-Type", "application/json")
+response := `{
+"host": "example.com",
+"status": "IN_PROGRESS",
+"endpoints": []
+}`
+_, _ = w.Write([]byte(response))
+}))
+defer server.Close()
+
+ssl := &SSLLabs{
+baseURL: server.URL,
+client:  &http.Client{Timeout: 5 * time.Second},
+}
+
+result := ssl.Check(context.Background(), "example.com")
+
+if result.Error == "" {
+t.Error("Expected error for IN_PROGRESS status")
+}
+if result.Error != "analysis in progress, try again later" {
+t.Errorf("Unexpected error message: %s", result.Error)
+}
+}
+
+func TestSSLLabsCheckError(t *testing.T) {
+server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+w.Header().Set("Content-Type", "application/json")
+response := `{
+"host": "example.com",
+"status": "ERROR",
+"statusMessage": "Unable to resolve domain"
+}`
+_, _ = w.Write([]byte(response))
+}))
+defer server.Close()
+
+ssl := &SSLLabs{
+baseURL: server.URL,
+client:  &http.Client{Timeout: 5 * time.Second},
+}
+
+result := ssl.Check(context.Background(), "example.com")
+
+if result.Error == "" {
+t.Error("Expected error for ERROR status")
+}
+if result.Error != "analysis error: Unable to resolve domain" {
+t.Errorf("Unexpected error message: %s", result.Error)
+}
+}
+
+func TestSSLLabsCheckRateLimit(t *testing.T) {
+server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+w.WriteHeader(http.StatusTooManyRequests)
+}))
+defer server.Close()
+
+ssl := &SSLLabs{
+baseURL: server.URL,
+client:  &http.Client{Timeout: 5 * time.Second},
+}
+
+result := ssl.Check(context.Background(), "example.com")
+
+if result.Error == "" {
+t.Error("Expected error for rate limit")
+}
+if result.Error != "SSL Labs rate limit exceeded, please try again later" {
+t.Errorf("Unexpected error message: %s", result.Error)
+}
+}
+
+func TestSSLLabsCheckMultipleEndpoints(t *testing.T) {
+server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+w.Header().Set("Content-Type", "application/json")
+response := `{
+"host": "example.com",
+"status": "READY",
+"endpoints": [
+{
+"ipAddress": "93.184.216.34",
+"statusMessage": "Ready",
+"grade": "A"
+},
+{
+"ipAddress": "93.184.216.35",
+"statusMessage": "Ready",
+"grade": "A+"
+}
+]
+}`
+_, _ = w.Write([]byte(response))
+}))
+defer server.Close()
+
+ssl := &SSLLabs{
+baseURL: server.URL,
+client:  &http.Client{Timeout: 5 * time.Second},
+}
+
+result := ssl.Check(context.Background(), "example.com")
+
+if result.Error != "" {
+t.Errorf("Unexpected error: %s", result.Error)
+}
+// Worst grade should be the primary score (A is worse than A+ in ranking)
+if result.Score != "A" {
+t.Errorf("Expected score 'A', got %s", result.Score)
+}
+// Should contain all grades in details
+if result.Details["all_grades"] != "[A A+]" {
+t.Errorf("Expected all_grades '[A A+]', got %s", result.Details["all_grades"])
+}
 }
 
 func TestSSLLabsCheckWorstGradeSelection(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		response := `{
-			"host": "example.com",
-			"status": "READY",
-			"endpoints": [
-				{
-					"ipAddress": "93.184.216.34",
-					"statusMessage": "Ready",
-					"grade": "A+"
-				},
-				{
-					"ipAddress": "93.184.216.35",
-					"statusMessage": "Ready",
-					"grade": "B"
-				},
-				{
-					"ipAddress": "93.184.216.36",
-					"statusMessage": "Ready",
-					"grade": "A"
-				}
-			]
-		}`
-		_, _ = w.Write([]byte(response))
-	}))
-	defer server.Close()
+server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+w.Header().Set("Content-Type", "application/json")
+response := `{
+"host": "example.com",
+"status": "READY",
+"endpoints": [
+{
+"ipAddress": "93.184.216.34",
+"statusMessage": "Ready",
+"grade": "A+"
+},
+{
+"ipAddress": "93.184.216.35",
+"statusMessage": "Ready",
+"grade": "B"
+},
+{
+"ipAddress": "93.184.216.36",
+"statusMessage": "Ready",
+"grade": "A"
+}
+]
+}`
+_, _ = w.Write([]byte(response))
+}))
+defer server.Close()
 
-	ssl := &SSLLabs{
-		baseURL: server.URL,
-		client:  &http.Client{Timeout: 5 * time.Second},
-	}
+ssl := &SSLLabs{
+baseURL: server.URL,
+client:  &http.Client{Timeout: 5 * time.Second},
+}
 
-	result := ssl.Check(context.Background(), "example.com")
+result := ssl.Check(context.Background(), "example.com")
 
-	if result.Error != "" {
-		t.Errorf("Unexpected error: %s", result.Error)
-	}
-	// Worst grade should be B (rank 5, higher than A+ rank 1 and A rank 2)
-	if result.Score != "B" {
-		t.Errorf("Expected score 'B' (worst grade), got %s", result.Score)
-	}
-	// Should be detected since grade is below A
-	if !result.Detected {
-		t.Error("Expected Detected to be true for B grade")
-	}
+if result.Error != "" {
+t.Errorf("Unexpected error: %s", result.Error)
+}
+// Worst grade should be B (rank 5, higher than A+ rank 1 and A rank 2)
+if result.Score != "B" {
+t.Errorf("Expected score 'B' (worst grade), got %s", result.Score)
+}
+// Should be detected since grade is below A
+if !result.Detected {
+t.Error("Expected Detected to be true for B grade")
+}
 }
 
 func TestSSLLabsCheckUnknownGrade(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		// Test with an unknown grade that doesn't exist in the ranking
-		response := `{
-			"host": "example.com",
-			"status": "READY",
-			"endpoints": [
-				{
-					"ipAddress": "93.184.216.34",
-					"statusMessage": "Ready",
-					"grade": "X"
-				}
-			]
-		}`
-		_, _ = w.Write([]byte(response))
-	}))
-	defer server.Close()
+server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+w.Header().Set("Content-Type", "application/json")
+// Test with an unknown grade that doesn't exist in the ranking
+response := `{
+"host": "example.com",
+"status": "READY",
+"endpoints": [
+{
+"ipAddress": "93.184.216.34",
+"statusMessage": "Ready",
+"grade": "X"
+}
+]
+}`
+_, _ = w.Write([]byte(response))
+}))
+defer server.Close()
 
-	ssl := &SSLLabs{
-		baseURL: server.URL,
-		client:  &http.Client{Timeout: 5 * time.Second},
-	}
+ssl := &SSLLabs{
+baseURL: server.URL,
+client:  &http.Client{Timeout: 5 * time.Second},
+}
 
-	result := ssl.Check(context.Background(), "example.com")
+result := ssl.Check(context.Background(), "example.com")
 
-	if result.Error != "" {
-		t.Errorf("Unexpected error: %s", result.Error)
-	}
-	// Unknown grade should still be returned as the score
-	if result.Score != "X" {
-		t.Errorf("Expected score 'X', got %s", result.Score)
-	}
-	// Unknown grades should be treated as potential issues
-	if !result.Detected {
-		t.Error("Expected Detected to be true for unknown grade")
-	}
+if result.Error != "" {
+t.Errorf("Unexpected error: %s", result.Error)
+}
+// Unknown grade should still be returned as the score
+if result.Score != "X" {
+t.Errorf("Expected score 'X', got %s", result.Score)
+}
+// Unknown grades should be treated as potential issues
+if !result.Detected {
+t.Error("Expected Detected to be true for unknown grade")
+}
 }
 
 func TestSSLLabsCheckMixedKnownUnknownGrades(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		// Test with mixed known and unknown grades
-		response := `{
-			"host": "example.com",
-			"status": "READY",
-			"endpoints": [
-				{
-					"ipAddress": "93.184.216.34",
-					"statusMessage": "Ready",
-					"grade": "X"
-				},
-				{
-					"ipAddress": "93.184.216.35",
-					"statusMessage": "Ready",
-					"grade": "B"
-				}
-			]
-		}`
-		_, _ = w.Write([]byte(response))
-	}))
-	defer server.Close()
+server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+w.Header().Set("Content-Type", "application/json")
+// Test with mixed known and unknown grades
+response := `{
+"host": "example.com",
+"status": "READY",
+"endpoints": [
+{
+"ipAddress": "93.184.216.34",
+"statusMessage": "Ready",
+"grade": "X"
+},
+{
+"ipAddress": "93.184.216.35",
+"statusMessage": "Ready",
+"grade": "B"
+}
+]
+}`
+_, _ = w.Write([]byte(response))
+}))
+defer server.Close()
 
-	ssl := &SSLLabs{
-		baseURL: server.URL,
-		client:  &http.Client{Timeout: 5 * time.Second},
-	}
+ssl := &SSLLabs{
+baseURL: server.URL,
+client:  &http.Client{Timeout: 5 * time.Second},
+}
 
-	result := ssl.Check(context.Background(), "example.com")
+result := ssl.Check(context.Background(), "example.com")
 
-	if result.Error != "" {
-		t.Errorf("Unexpected error: %s", result.Error)
-	}
-	// Known grade (B) should take precedence over unknown grade (X)
-	if result.Score != "B" {
-		t.Errorf("Expected score 'B' (known grade takes precedence), got %s", result.Score)
-	}
-	// Should be detected due to unknown grade and B grade
-	if !result.Detected {
-		t.Error("Expected Detected to be true")
-	}
+if result.Error != "" {
+t.Errorf("Unexpected error: %s", result.Error)
+}
+// Known grade (B) should take precedence over unknown grade (X)
+if result.Score != "B" {
+t.Errorf("Expected score 'B' (known grade takes precedence), got %s", result.Score)
+}
+// Should be detected due to unknown grade and B grade
+if !result.Detected {
+t.Error("Expected Detected to be true")
+}
 }

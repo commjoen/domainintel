@@ -84,6 +84,7 @@ type TLSResult struct {
 type DomainResult struct {
 	Name       string            `json:"name"`
 	Subdomains []SubdomainResult `json:"subdomains"`
+	Error      string            `json:"error,omitempty"`
 }
 
 // ScanResult is the top-level result structure
