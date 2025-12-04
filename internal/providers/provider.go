@@ -165,6 +165,7 @@ func NewRateLimiter() *RateLimiter {
 			"gsafe":   10,
 			"norton":  10,
 			"scanurl": 10,
+			"ssllabs": 1, // SSL Labs: conservative limit due to slow analysis
 		},
 	}
 }

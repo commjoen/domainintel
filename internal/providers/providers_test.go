@@ -331,3 +331,219 @@ func TestManagerCheckNonExistent(t *testing.T) {
 		t.Errorf("Expected 0 results for non-existent provider, got %d", len(results.Results))
 	}
 }
+
+func TestSSLLabsName(t *testing.T) {
+	ssl := NewSSLLabs(SSLLabsConfig{})
+	if ssl.Name() != "ssllabs" {
+		t.Errorf("Expected name 'ssllabs', got %s", ssl.Name())
+	}
+}
+
+func TestSSLLabsIsAvailable(t *testing.T) {
+	ssl := NewSSLLabs(SSLLabsConfig{})
+	// SSL Labs is always available (free public API)
+	if !ssl.IsAvailable() {
+		t.Error("Expected IsAvailable to be true for SSL Labs")
+	}
+}
+
+func TestSSLLabsCheckMockServer(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		response := `{
+			"host": "example.com",
+			"port": 443,
+			"protocol": "http/1.1",
+			"status": "READY",
+			"startTime": 1234567890,
+			"testTime": 1234567900,
+			"engineVersion": "2.0.0",
+			"endpoints": [{
+				"ipAddress": "93.184.216.34",
+				"serverName": "example.com",
+				"statusMessage": "Ready",
+				"grade": "A+",
+				"hasWarnings": false,
+				"isExceptional": true
+			}]
+		}`
+		_, _ = w.Write([]byte(response))
+	}))
+	defer server.Close()
+
+	ssl := &SSLLabs{
+		baseURL: server.URL,
+		client:  &http.Client{Timeout: 5 * time.Second},
+	}
+
+	result := ssl.Check(context.Background(), "example.com")
+
+	if result.Error != "" {
+		t.Errorf("Unexpected error: %s", result.Error)
+	}
+	if result.Score != "A+" {
+		t.Errorf("Expected score 'A+', got %s", result.Score)
+	}
+	if result.Detected {
+		t.Error("Expected Detected to be false for A+ grade")
+	}
+	if result.Details["host"] != "example.com" {
+		t.Errorf("Expected host 'example.com', got %s", result.Details["host"])
+	}
+	if result.Details["ip_address"] != "93.184.216.34" {
+		t.Errorf("Expected ip_address '93.184.216.34', got %s", result.Details["ip_address"])
+	}
+}
+
+func TestSSLLabsCheckWithWarnings(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		response := `{
+			"host": "example.com",
+			"status": "READY",
+			"endpoints": [{
+				"ipAddress": "93.184.216.34",
+				"statusMessage": "Ready",
+				"grade": "B",
+				"hasWarnings": true
+			}]
+		}`
+		_, _ = w.Write([]byte(response))
+	}))
+	defer server.Close()
+
+	ssl := &SSLLabs{
+		baseURL: server.URL,
+		client:  &http.Client{Timeout: 5 * time.Second},
+	}
+
+	result := ssl.Check(context.Background(), "example.com")
+
+	if result.Error != "" {
+		t.Errorf("Unexpected error: %s", result.Error)
+	}
+	if result.Score != "B" {
+		t.Errorf("Expected score 'B', got %s", result.Score)
+	}
+	if !result.Detected {
+		t.Error("Expected Detected to be true for B grade with warnings")
+	}
+}
+
+func TestSSLLabsCheckInProgress(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		response := `{
+			"host": "example.com",
+			"status": "IN_PROGRESS",
+			"endpoints": []
+		}`
+		_, _ = w.Write([]byte(response))
+	}))
+	defer server.Close()
+
+	ssl := &SSLLabs{
+		baseURL: server.URL,
+		client:  &http.Client{Timeout: 5 * time.Second},
+	}
+
+	result := ssl.Check(context.Background(), "example.com")
+
+	if result.Error == "" {
+		t.Error("Expected error for IN_PROGRESS status")
+	}
+	if result.Error != "analysis in progress, try again later" {
+		t.Errorf("Unexpected error message: %s", result.Error)
+	}
+}
+
+func TestSSLLabsCheckError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		response := `{
+			"host": "example.com",
+			"status": "ERROR",
+			"statusMessage": "Unable to resolve domain"
+		}`
+		_, _ = w.Write([]byte(response))
+	}))
+	defer server.Close()
+
+	ssl := &SSLLabs{
+		baseURL: server.URL,
+		client:  &http.Client{Timeout: 5 * time.Second},
+	}
+
+	result := ssl.Check(context.Background(), "example.com")
+
+	if result.Error == "" {
+		t.Error("Expected error for ERROR status")
+	}
+	if result.Error != "analysis error: Unable to resolve domain" {
+		t.Errorf("Unexpected error message: %s", result.Error)
+	}
+}
+
+func TestSSLLabsCheckRateLimit(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusTooManyRequests)
+	}))
+	defer server.Close()
+
+	ssl := &SSLLabs{
+		baseURL: server.URL,
+		client:  &http.Client{Timeout: 5 * time.Second},
+	}
+
+	result := ssl.Check(context.Background(), "example.com")
+
+	if result.Error == "" {
+		t.Error("Expected error for rate limit")
+	}
+	if result.Error != "SSL Labs rate limit exceeded, please try again later" {
+		t.Errorf("Unexpected error message: %s", result.Error)
+	}
+}
+
+func TestSSLLabsCheckMultipleEndpoints(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		response := `{
+			"host": "example.com",
+			"status": "READY",
+			"endpoints": [
+				{
+					"ipAddress": "93.184.216.34",
+					"statusMessage": "Ready",
+					"grade": "A"
+				},
+				{
+					"ipAddress": "93.184.216.35",
+					"statusMessage": "Ready",
+					"grade": "A+"
+				}
+			]
+		}`
+		_, _ = w.Write([]byte(response))
+	}))
+	defer server.Close()
+
+	ssl := &SSLLabs{
+		baseURL: server.URL,
+		client:  &http.Client{Timeout: 5 * time.Second},
+	}
+
+	result := ssl.Check(context.Background(), "example.com")
+
+	if result.Error != "" {
+		t.Errorf("Unexpected error: %s", result.Error)
+	}
+	// First endpoint grade should be the primary score
+	if result.Score != "A" {
+		t.Errorf("Expected score 'A', got %s", result.Score)
+	}
+	// Should contain all grades in details
+	if result.Details["all_grades"] != "[A A+]" {
+		t.Errorf("Expected all_grades '[A A+]', got %s", result.Details["all_grades"])
+	}
+}

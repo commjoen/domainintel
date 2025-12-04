@@ -63,9 +63,10 @@ discovering subdomains, checking their availability, resolving IP addresses,
 and validating TLS certificates.
 
 Third-party providers:
-  --providers vt,urlvoid
+  --providers vt,urlvoid,ssllabs
     - vt      (VirusTotal) requires VT_API_KEY in environment
     - urlvoid (URLVoid)    requires URLVOID_API_KEY in environment
+    - ssllabs (SSL Labs)   no API key required (free public API)
 If you request a provider without the required API key set, the command will fail with a clear error.`,
 	Example: `  # Basic subdomain enumeration
   domainintel --domains example.com
@@ -79,10 +80,10 @@ If you request a provider without the required API key set, the command will fai
   # Full reconnaissance with DNS and WHOIS
   domainintel --domains example.com --dig --whois
 
-  # Use third-party reputation services (API keys required)
+  # Use third-party reputation services (API keys required for some)
   export VT_API_KEY=your_key
   export URLVOID_API_KEY=your_key
-  domainintel --domains example.com --providers vt,urlvoid`,
+  domainintel --domains example.com --providers vt,urlvoid,ssllabs`,
 	RunE: run,
 }
 
@@ -97,7 +98,7 @@ func init() {
 	rootCmd.Flags().BoolVar(&enableDig, "dig", false, "Enable extended DNS queries (A/AAAA/MX/TXT/NS/CNAME/SOA)")
 	rootCmd.Flags().BoolVar(&enableWhois, "whois", false, "Enable WHOIS lookups for registration data")
 	// Clarify available providers and required env keys
-	rootCmd.Flags().StringVar(&providersList, "providers", "", "Comma-separated third-party services: vt,urlvoid (requires VT_API_KEY and/or URLVOID_API_KEY)")
+	rootCmd.Flags().StringVar(&providersList, "providers", "", "Comma-separated third-party services: vt,urlvoid,ssllabs (requires VT_API_KEY and/or URLVOID_API_KEY)")
 
 	// Override the default version template to include update check
 	rootCmd.SetVersionTemplate(getVersionTemplate())
@@ -564,6 +565,7 @@ func setupProviders(list string, timeout time.Duration) (*providers.Manager, []s
 	supported := map[string]struct{}{
 		"vt":      {},
 		"urlvoid": {},
+		"ssllabs": {},
 	}
 
 	parts := strings.Split(list, ",")
@@ -576,12 +578,12 @@ func setupProviders(list string, timeout time.Duration) (*providers.Manager, []s
 			continue
 		}
 		if _, ok := supported[p]; !ok {
-			return nil, nil, fmt.Errorf("unknown provider %q. Supported: vt,urlvoid", p)
+			return nil, nil, fmt.Errorf("unknown provider %q. Supported: vt,urlvoid,ssllabs", p)
 		}
 		requested = append(requested, p)
 	}
 	if len(requested) == 0 {
-		return nil, nil, fmt.Errorf("no valid providers specified. Use --providers vt,urlvoid")
+		return nil, nil, fmt.Errorf("no valid providers specified. Use --providers vt,urlvoid,ssllabs")
 	}
 
 	// Validate API keys for requested providers
@@ -597,6 +599,7 @@ func setupProviders(list string, timeout time.Duration) (*providers.Manager, []s
 			if strings.TrimSpace(urlvoidKey) == "" {
 				return nil, nil, fmt.Errorf("URLVOID_API_KEY is required for provider 'urlvoid'")
 			}
+			// ssllabs does not require an API key
 		}
 	}
 
@@ -612,6 +615,10 @@ func setupProviders(list string, timeout time.Duration) (*providers.Manager, []s
 		case "urlvoid":
 			pm.Register(providers.NewURLVoid(providers.URLVoidConfig{
 				APIKey:  urlvoidKey,
+				Timeout: timeout,
+			}))
+		case "ssllabs":
+			pm.Register(providers.NewSSLLabs(providers.SSLLabsConfig{
 				Timeout: timeout,
 			}))
 		}
