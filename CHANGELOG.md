@@ -7,6 +7,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.6] - 2025-12-04
+
+### Added
+- **Enhanced Wildcard Pattern Support**
+  - Improved wildcard pattern extraction and normalization
+  - Better handling of edge cases in pattern matching
+  - Domain format validation for wildcard search results
+  - Support for multiple wildcard patterns in single query
+
+- **Improved Error Handling**
+  - More descriptive error messages for wildcard pattern failures
+  - Better validation feedback for invalid domain formats
+  - Clear instructions when wildcard flag is required but missing
+  - Enhanced logging for CT log query failures
+
+### Changed
+- Refactored domain parsing logic for better maintainability
+- Improved progress bar initialization and display logic
+- Enhanced verbose logging output for pattern-based searches
+- Better separation of domain queries vs keyword searches
+
+### Fixed
+- Progress bar not showing when 0 subdomains are initially found
+- Wildcard pattern validation allowing invalid characters
+- Domain deduplication logic for wildcard search results
+- Context handling in CT log queries
+
+### Technical Details
+- Added `isValidDomainFormat()` helper function for RFC 1035 compliance
+- Improved `extractBaseDomain()` pattern normalization logic
+- Enhanced `crt.SearchByKeyword()` error handling and timeouts
+- Better mutex handling for concurrent subdomain collection
+- Separated query tracking for domains vs keywords in progress bar
+
+### Performance
+- Reduced redundant CT log queries for similar patterns
+- Optimized domain deduplication with map-based lookups
+- Improved concurrent query handling with better worker pool management
+
+### Documentation
+- Updated CLI help text with wildcard examples
+- Added comprehensive wildcard pattern documentation
+- Improved flag descriptions and usage examples
+- Enhanced error messages with actionable guidance
+
+### Examples
+```bash
+# Keyword search with progress tracking
+domainintel -d '*wrongsecrets*' --wildcard -p -v
+
+# Multiple wildcard patterns
+domainintel -d '*.prod.com,*.staging.com,*api*' -w -p
+
+# Combined normal and wildcard domains
+domainintel -d 'example.com,*.test.com' --wildcard --dig -o results.json
+
+# Full scan with all features
+domainintel -d '*security*' -w --dig --whois --providers vt -p -v
+```
+
 ## [0.1.5] - 2025-12-04
 
 ### Added
@@ -286,7 +346,8 @@ domainintel --domains example.com \
 - [ ] Export to additional formats (HTML, Markdown)
 - [ ] Semantic version comparison for update checks
 
-[Unreleased]: https://github.com/commjoen/domainintel/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/commjoen/domainintel/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/commjoen/domainintel/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/commjoen/domainintel/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/commjoen/domainintel/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/commjoen/domainintel/compare/v0.1.2...v0.1.3
