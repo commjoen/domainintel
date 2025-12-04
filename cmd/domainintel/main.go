@@ -166,7 +166,7 @@ func checkLatestVersion(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch latest release: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
@@ -543,7 +543,11 @@ func outputResults(formatter output.Formatter, result *models.ScanResult) error 
 		if err != nil {
 			return fmt.Errorf("failed to create output file: %w", err)
 		}
-		defer writer.Close()
+		defer func() {
+			if cerr := writer.Close(); cerr != nil && err == nil {
+				err = cerr
+			}
+		}()
 	} else {
 		writer = os.Stdout
 	}
