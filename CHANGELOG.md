@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **New `make vet` target** for Go static analysis
+  - Runs `go vet ./...` to detect suspicious constructs
+  - Available as standalone target or part of quality checks
+
+### Fixed
+- **Makefile lint target** - Updated golangci-lint installation to use compatible version (2.10.1) for Go 1.26.0
+- **Security scan warnings** - Added proper `#nosec` comments for false positive SSRF warnings in trusted API calls
+  - G704 warnings suppressed for hardcoded API endpoints
+  - G117 warnings excluded in .golangci.yml for intentional APIKey config fields
+- **CI workflow Go version mismatch** - Updated GitHub Actions workflows to use Go 1.26.0 matching go.mod requirements
+  - Fixed Test job to use go1.26.0
+  - Fixed Lint job to use go1.26.0
+  - Fixed Security Scan job to use go1.26.0
+  - Fixed Build job to use go1.26.0
+
+### Technical Details
+- Added `#nosec G704` comments to HTTP client calls in:
+  - `internal/crt/crt.go` - crt.sh queries
+  - `internal/providers/safebrowsing.go` - Safe Browsing API
+  - `internal/providers/securityheaders.go` - Security Headers API
+  - `internal/providers/ssllabs.go` - SSL Labs API
+  - `internal/providers/urlvoid.go` - URLVoid API
+  - `internal/providers/virustotal.go` - VirusTotal API
+  - `internal/reachability/http.go` - HTTP reachability checks
+  - `cmd/domainintel/main.go` - GitHub API release checks
+- Updated .golangci.yml to exclude G117 warnings for APIKey config struct fields
+
 ## [0.1.6] - 2025-12-04
 
 ### Added

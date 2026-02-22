@@ -188,7 +188,7 @@ This tool implements several security measures:
 ### Build Commands
 
 ```bash
-# Build
+# Build the binary
 make build
 
 # Run tests
@@ -196,6 +196,9 @@ make test
 
 # Run tests with coverage
 make test-coverage
+
+# Run static analysis (go vet)
+make vet
 
 # Run linter
 make lint
@@ -207,6 +210,10 @@ make security
 make build-all
 
 # Clean build artifacts
+make clean
+
+# Show all available targets
+make help
 ```
 
 ### Project Structure
