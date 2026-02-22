@@ -18,7 +18,7 @@ GOMOD=$(GOCMD) mod
 CMD_DIR=./cmd/domainintel
 DIST_DIR=./dist
 
-.PHONY: all build clean test test-coverage lint lint-install security deps tidy update help
+.PHONY: all build clean test test-coverage vet lint lint-install security security-install deps tidy update run help
 
 # Default target
 all: deps lint test build
@@ -48,6 +48,11 @@ clean:
 	rm -f $(BINARY_NAME)
 	rm -rf $(DIST_DIR)
 
+# Run go vet
+vet:
+	@echo "Running go vet..."
+	$(GOCMD) vet ./...
+
 # Run tests
 test:
 	@echo "Running tests..."
@@ -62,8 +67,8 @@ test-coverage:
 
 # Install linting tools
 lint-install:
-	@echo "Installing golangci-lint v2..."
-	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v2.7.0
+	@echo "Installing golangci-lint (latest)..."
+	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(shell go env GOPATH)/bin latest
 	@echo "Installed: $$(golangci-lint --version)"
 
 # Run linter
@@ -141,6 +146,7 @@ help:
 	@echo "  clean         - Remove build artifacts"
 	@echo "  test          - Run tests"
 	@echo "  test-coverage - Run tests with coverage report"
+	@echo "  vet           - Run go vet analysis"
 	@echo "  lint          - Run linter (installs golangci-lint if needed)"
 	@echo "  security      - Run security scan (installs gosec if needed)"
 	@echo "  deps          - Download dependencies"

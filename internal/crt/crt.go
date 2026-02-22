@@ -113,6 +113,7 @@ func (c *Client) queryCRTsh(ctx context.Context, domain string) ([]models.CRTEnt
 		req.Header.Set("User-Agent", "domainintel/1.0")
 		req.Header.Set("Accept", "application/json")
 
+		// #nosec G704 - URL is safely constructed from hardcoded base URL and properly escaped domain
 		resp, err := c.httpClient.Do(req)
 		if err != nil {
 			lastErr = fmt.Errorf("request failed: %w", err)

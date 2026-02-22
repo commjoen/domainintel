@@ -20,7 +20,7 @@ type VirusTotal struct {
 
 // VirusTotalConfig contains configuration for the VirusTotal provider
 type VirusTotalConfig struct {
-	APIKey  string
+	APIKey  string // #nosec G117
 	Timeout time.Duration
 }
 
@@ -74,6 +74,7 @@ func (v *VirusTotal) Check(ctx context.Context, domain string) *Result {
 	req.Header.Set("x-apikey", v.apiKey)
 	req.Header.Set("Accept", "application/json")
 
+	// #nosec G704 - URL is from hardcoded VirusTotal API with validated domain parameter
 	resp, err := v.client.Do(req)
 	if err != nil {
 		result.Error = fmt.Sprintf("request failed: %v", err)

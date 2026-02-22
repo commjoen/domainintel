@@ -40,7 +40,7 @@ domainintel automates the process of discovering subdomains through Certificate 
 
 ### From Source
 
-Requires Go 1.25.4 or later.
+Requires Go 1.26.0 or later.
 
 ```bash
 # Clone the repository
@@ -181,7 +181,7 @@ This tool implements several security measures:
 
 ### Prerequisites
 
-- Go 1.25.4 or later
+- Go 1.26.0 or later
 - golangci-lint (optional, for linting)
 - gosec (optional, for security scanning)
 

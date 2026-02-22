@@ -71,6 +71,7 @@ func (s *SecurityHeaders) Check(ctx context.Context, domain string) *Result {
 	req.Header.Set("User-Agent", "domainintel/1.0")
 	req.Header.Set("Accept", "application/json")
 
+	// #nosec G704 - URL is constructed from hardcoded base and sanitized domain parameter
 	resp, err := s.client.Do(req)
 	if err != nil {
 		result.Error = fmt.Sprintf("request failed: %v", err)

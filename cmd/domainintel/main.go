@@ -202,6 +202,7 @@ func checkLatestVersion(ctx context.Context) (string, error) {
 		Timeout: 3 * time.Second,
 	}
 
+	// #nosec G704 - URL is hardcoded to GitHub API releases
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch latest release: %w", err)

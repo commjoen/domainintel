@@ -20,7 +20,7 @@ type URLVoid struct {
 
 // URLVoidConfig contains configuration for the URLVoid provider
 type URLVoidConfig struct {
-	APIKey  string
+	APIKey  string // #nosec G117
 	Timeout time.Duration
 }
 
@@ -73,6 +73,7 @@ func (u *URLVoid) Check(ctx context.Context, domain string) *Result {
 	}
 	req.Header.Set("User-Agent", "domainintel/1.0")
 
+	// #nosec G704 - URL is from hardcoded API endpoint with validated domain parameter
 	resp, err := u.client.Do(req)
 	if err != nil {
 		result.Error = fmt.Sprintf("request failed: %v", err)

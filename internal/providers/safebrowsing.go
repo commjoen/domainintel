@@ -20,7 +20,7 @@ type SafeBrowsing struct {
 
 // SafeBrowsingConfig contains configuration for the Safe Browsing provider
 type SafeBrowsingConfig struct {
-	APIKey  string
+	APIKey  string // #nosec G117
 	Timeout time.Duration
 }
 
@@ -106,6 +106,7 @@ func (s *SafeBrowsing) Check(ctx context.Context, domain string) *Result {
 	}
 	req.Header.Set("Content-Type", "application/json")
 
+	// #nosec G704 - URL is hardcoded and body is JSON-validated
 	resp, err := s.client.Do(req)
 	if err != nil {
 		result.Error = fmt.Sprintf("request failed: %v", err)

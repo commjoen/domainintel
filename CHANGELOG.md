@@ -251,7 +251,7 @@ domainintel -d '*wrongsecrets*' --wildcard --dig --whois -f json -p
 - Version output now includes update check and status indicator
 
 ### Technical Details
-- Built with Go 1.25.4+
+- Built with Go 1.26.0+
 - Uses Cobra for CLI framework
 - Implements context-based cancellation
 - Concurrent processing with worker pools and semaphores

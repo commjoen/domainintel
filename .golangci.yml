@@ -30,6 +30,7 @@ linters:
     gosec:
       excludes:
         - G104
+        - G117  # APIKey fields in config structs are intentional
   exclusions:
     rules:
       - path: _test\.go

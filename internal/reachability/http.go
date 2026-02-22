@@ -137,6 +137,7 @@ func (c *Checker) CheckHTTP(ctx context.Context, urlStr string) *models.HTTPResu
 	}
 
 	start := time.Now()
+	// #nosec G704 - URL is from CheckReachability with validated domain/protocol parameters
 	resp, err := client.Do(req)
 	result.ResponseTimeMs = time.Since(start).Milliseconds()
 
